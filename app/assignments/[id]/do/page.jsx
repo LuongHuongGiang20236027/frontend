@@ -155,7 +155,8 @@ export default function DoAssignmentPage() {
       // 🔹 Đúng format backend hay dùng
       const answersPayload = questions.map(q => ({
         question_id: q.id,
-        answer_ids: userAnswers[q.id] || []
+        answer_id
+          : userAnswers[q.id] || []
       }))
 
       console.log("SUBMIT PAYLOAD:", {
