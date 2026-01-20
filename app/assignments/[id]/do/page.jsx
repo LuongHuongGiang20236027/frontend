@@ -10,10 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
-// 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// 🔹 Helper: tính tổng điểm fallback nếu BE không trả total_score
 const calcTotalScore = (questions = []) =>
   questions.reduce((sum, q) => sum + Number(q.score || 0), 0)
 
@@ -29,7 +27,6 @@ export default function DoAssignmentPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
 
-  // Fetch assignment từ backend
   useEffect(() => {
     if (!params?.id) return
 
@@ -42,12 +39,11 @@ export default function DoAssignmentPage() {
         }
         const data = await res.json()
 
-        // Map dữ liệu để frontend dùng chung (không show is_correct)
         const mappedAssignment = {
           ...data.assignment,
           questions: data.assignment.questions.map(q => ({
             ...q,
-            score: Number(q.score || 0), // 🔥 GIỮ ĐIỂM Ở TOP LEVEL
+            score: Number(q.score || 0),
             question_text: q.content,
             question_type: q.type,
             options: q.answers.map(a => ({
@@ -55,10 +51,8 @@ export default function DoAssignmentPage() {
               option_text: a.content
             }))
           }))
-
         }
 
-        // 🔹 Fallback total_score nếu backend không trả
         setAssignment({
           ...mappedAssignment,
           total_score:
@@ -86,20 +80,12 @@ export default function DoAssignmentPage() {
     if (isMultiple) {
       const current = userAnswers[questionId] || []
       const newAnswers = current.includes(answerId)
-        ? current.filter((id) => id !== answerId)
+        ? current.filter(id => id !== answerId)
         : [...current, answerId]
       setUserAnswers({ ...userAnswers, [questionId]: newAnswers })
     } else {
       setUserAnswers({ ...userAnswers, [questionId]: [answerId] })
     }
-  }
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) setCurrentQuestion(currentQuestion + 1)
-  }
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) setCurrentQuestion(currentQuestion - 1)
   }
 
   const handleSubmit = async () => {
@@ -122,7 +108,21 @@ export default function DoAssignmentPage() {
       })
 
       const data = await res.json()
-      setScore(data.score)
+
+      // 🔥 CHỐNG BE ĐỔI FORMAT
+      setScore(
+        Number(data.score ?? data.submission?.score ?? 0)
+      )
+
+      setAssignment(prev => ({
+        ...prev,
+        total_score: Number(
+          data.total_score ??
+          prev.total_score ??
+          calcTotalScore(prev.questions)
+        )
+      }))
+
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
@@ -131,7 +131,7 @@ export default function DoAssignmentPage() {
   }
 
   if (isSubmitted) {
-    const realTotal = calcTotalScore(assignment.questions)
+    const realTotal = assignment.total_score
     const percentage = realTotal
       ? ((score / realTotal) * 100).toFixed(0)
       : 0
@@ -156,7 +156,9 @@ export default function DoAssignmentPage() {
               <div className="text-5xl font-bold text-primary">
                 {score}/{realTotal}
               </div>
-              <p className="mt-2 text-lg text-muted-foreground">{percentage}% điểm</p>
+              <p className="mt-2 text-lg text-muted-foreground">
+                {percentage}% điểm
+              </p>
             </CardContent>
             <CardFooter className="flex gap-3">
               <Button variant="outline" onClick={() => router.push("/assignments")} className="flex-1">
@@ -189,48 +191,25 @@ export default function DoAssignmentPage() {
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Câu {currentQuestion + 1} / {questions.length}
-              </p>
-              <div className="mt-2 h-2 w-64 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-                />
-              </div>
-            </div>
-            <div className="text-sm font-medium text-primary">
-              {Object.keys(userAnswers).length} / {questions.length} đã trả lời
-            </div>
-          </div>
-
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-balance">
-                {question.question_text}
-              </CardTitle>
+              <CardTitle className="text-2xl">{question.question_text}</CardTitle>
               <CardDescription>
                 {isMultiple ? "Chọn tất cả đáp án đúng" : "Chọn một đáp án"} • {question.score} điểm
               </CardDescription>
             </CardHeader>
             <CardContent>
               {isMultiple ? (
-                <div key={`multiple-${question.id}`} className="space-y-3">
+                <div className="space-y-3">
                   {question.options.map(option => (
-                    <div
-                      key={option.id}
-                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                    >
+                    <div key={option.id} className="flex items-center space-x-3 border p-4 rounded-lg">
                       <Checkbox
-                        id={`option-${option.id}`}
                         checked={userAnswer.includes(option.id)}
                         onCheckedChange={() =>
                           handleAnswerChange(question.id, option.id, true)
                         }
                       />
-                      <Label htmlFor={`option-${option.id}`} className="flex-1 cursor-pointer">
+                      <Label className="flex-1 cursor-pointer">
                         {option.option_text}
                       </Label>
                     </div>
@@ -238,23 +217,16 @@ export default function DoAssignmentPage() {
                 </div>
               ) : (
                 <RadioGroup
-                  key={`single-${question.id}`}
                   value={userAnswer[0]?.toString()}
                   onValueChange={val =>
-                    handleAnswerChange(question.id, Number.parseInt(val), false)
+                    handleAnswerChange(question.id, Number(val), false)
                   }
                 >
                   <div className="space-y-3">
                     {question.options.map(option => (
-                      <div
-                        key={option.id}
-                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                      >
-                        <RadioGroupItem
-                          value={option.id.toString()}
-                          id={`option-${option.id}`}
-                        />
-                        <Label htmlFor={`option-${option.id}`} className="flex-1 cursor-pointer">
+                      <div key={option.id} className="flex items-center space-x-3 border p-4 rounded-lg">
+                        <RadioGroupItem value={option.id.toString()} />
+                        <Label className="flex-1 cursor-pointer">
                           {option.option_text}
                         </Label>
                       </div>
@@ -267,11 +239,12 @@ export default function DoAssignmentPage() {
             <CardFooter className="flex justify-between">
               <Button
                 variant="outline"
-                onClick={handlePrevious}
+                onClick={() => setCurrentQuestion(q => q - 1)}
                 disabled={currentQuestion === 0}
               >
                 Câu trước
               </Button>
+
               {currentQuestion === questions.length - 1 ? (
                 <Button
                   onClick={handleSubmit}
@@ -280,7 +253,9 @@ export default function DoAssignmentPage() {
                   Nộp bài
                 </Button>
               ) : (
-                <Button onClick={handleNext}>Câu tiếp theo</Button>
+                <Button onClick={() => setCurrentQuestion(q => q + 1)}>
+                  Câu tiếp theo
+                </Button>
               )}
             </CardFooter>
           </Card>
