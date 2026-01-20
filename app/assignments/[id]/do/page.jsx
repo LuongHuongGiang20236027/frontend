@@ -5,18 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
+// 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function DoAssignmentPage() {
@@ -31,23 +25,20 @@ export default function DoAssignmentPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
 
-  // Fetch assignment
+  // Fetch assignment từ backend
   useEffect(() => {
     if (!params?.id) return
 
     const fetchAssignment = async () => {
       try {
-        const res = await fetch(
-          `${API_URL}/api/assignments/${params.id}`
-        )
-
+        const res = await fetch(`${API_URL}/api/assignments/${params.id}`)
         if (!res.ok) {
           if (res.status === 404) router.replace("/404")
           throw new Error("Bài tập không tìm thấy")
         }
-
         const data = await res.json()
 
+        // Map dữ liệu để frontend dùng chung (không show is_correct)
         const mappedAssignment = {
           ...data.assignment,
           questions: data.assignment.questions.map(q => ({
@@ -73,53 +64,62 @@ export default function DoAssignmentPage() {
     fetchAssignment()
   }, [params?.id, router])
 
-  // SUBMIT → JWT
+  if (loading) return <div className="text-center mt-20">Đang tải bài tập...</div>
+  if (error) return <div className="text-center mt-20 text-red-500">{error}</div>
+  if (!assignment) return null
+
+  const questions = assignment.questions || []
+
+  const handleAnswerChange = (questionId, answerId, isMultiple) => {
+    if (isMultiple) {
+      const current = userAnswers[questionId] || []
+      const newAnswers = current.includes(answerId)
+        ? current.filter((id) => id !== answerId)
+        : [...current, answerId]
+      setUserAnswers({ ...userAnswers, [questionId]: newAnswers })
+    } else {
+      setUserAnswers({ ...userAnswers, [questionId]: [answerId] })
+    }
+  }
+
+  const handleNext = () => {
+    if (currentQuestion < questions.length - 1) setCurrentQuestion(currentQuestion + 1)
+  }
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) setCurrentQuestion(currentQuestion - 1)
+  }
+
   const handleSubmit = async () => {
     try {
-      const token = localStorage.getItem("token")
-
-      if (!token) {
-        alert("Vui lòng đăng nhập để nộp bài")
-        router.push("/login")
-        return
-      }
-
-      const answersPayload = assignment.questions.map(q => ({
+      const answersPayload = questions.map(q => ({
         question_id: q.id,
         answer_id: userAnswers[q.id] || []
       }))
 
-      const res = await fetch(
-        `${API_URL}/api/assignments/submit`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            assignment_id: assignment.id,
-            answers: answersPayload
-          })
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error("Nộp bài thất bại")
-      }
+      const res = await fetch(`${API_URL}/api/assignments/submit`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          answers: answersPayload,
+        }),
+      })
 
       const data = await res.json()
       setScore(data.score)
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
-      alert(err.message || "Có lỗi khi nộp bài")
+      alert("Có lỗi khi nộp bài")
     }
   }
 
   if (isSubmitted) {
     const percentage = ((score / assignment.total_score) * 100).toFixed(0)
-
     return (
       <div className="min-h-screen">
         <Header />
@@ -127,7 +127,7 @@ export default function DoAssignmentPage() {
           <Card className="mx-auto max-w-2xl">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                {Number(percentage) >= 70 ? (
+                {Number.parseInt(percentage) >= 70 ? (
                   <CheckCircle2 className="h-12 w-12 text-primary" />
                 ) : (
                   <XCircle className="h-12 w-12 text-destructive" />
@@ -136,25 +136,14 @@ export default function DoAssignmentPage() {
               <CardTitle className="text-3xl">Hoàn thành bài tập!</CardTitle>
               <CardDescription>Kết quả của bạn</CardDescription>
             </CardHeader>
-
             <CardContent className="space-y-6 text-center">
-              <div className="text-5xl font-bold text-primary">
-                {score}/{assignment.total_score}
-              </div>
-              <p className="mt-2 text-lg text-muted-foreground">
-                {percentage}% điểm
-              </p>
+              <div className="text-5xl font-bold text-primary">{score}/{assignment.total_score}</div>
+              <p className="mt-2 text-lg text-muted-foreground">{percentage}% điểm</p>
             </CardContent>
-
             <CardFooter className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/assignments")}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => router.push("/assignments")} className="flex-1">
                 Danh sách bài tập
               </Button>
-
               <Button
                 onClick={() => {
                   setIsSubmitted(false)
@@ -190,13 +179,10 @@ export default function DoAssignmentPage() {
               <div className="mt-2 h-2 w-64 overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full bg-primary transition-all"
-                  style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100}%`
-                  }}
+                  style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
                 />
               </div>
             </div>
-
             <div className="text-sm font-medium text-primary">
               {Object.keys(userAnswers).length} / {questions.length} đã trả lời
             </div>
@@ -208,14 +194,12 @@ export default function DoAssignmentPage() {
                 {question.question_text}
               </CardTitle>
               <CardDescription>
-                {isMultiple ? "Chọn tất cả đáp án đúng" : "Chọn một đáp án"} •{" "}
-                {question.score} điểm
+                {isMultiple ? "Chọn tất cả đáp án đúng" : "Chọn một đáp án"} • {question.score} điểm
               </CardDescription>
             </CardHeader>
-
             <CardContent>
               {isMultiple ? (
-                <div className="space-y-3">
+                <div key={`multiple-${question.id}`} className="space-y-3">
                   {question.options.map(option => (
                     <div
                       key={option.id}
@@ -225,17 +209,10 @@ export default function DoAssignmentPage() {
                         id={`option-${option.id}`}
                         checked={userAnswer.includes(option.id)}
                         onCheckedChange={() =>
-                          handleAnswerChange(
-                            question.id,
-                            option.id,
-                            true
-                          )
+                          handleAnswerChange(question.id, option.id, true)
                         }
                       />
-                      <Label
-                        htmlFor={`option-${option.id}`}
-                        className="flex-1 cursor-pointer"
-                      >
+                      <Label htmlFor={`option-${option.id}`} className="flex-1 cursor-pointer">
                         {option.option_text}
                       </Label>
                     </div>
@@ -243,13 +220,10 @@ export default function DoAssignmentPage() {
                 </div>
               ) : (
                 <RadioGroup
+                  key={`single-${question.id}`}
                   value={userAnswer[0]?.toString()}
                   onValueChange={val =>
-                    handleAnswerChange(
-                      question.id,
-                      Number.parseInt(val),
-                      false
-                    )
+                    handleAnswerChange(question.id, Number.parseInt(val), false)
                   }
                 >
                   <div className="space-y-3">
@@ -262,10 +236,7 @@ export default function DoAssignmentPage() {
                           value={option.id.toString()}
                           id={`option-${option.id}`}
                         />
-                        <Label
-                          htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
+                        <Label htmlFor={`option-${option.id}`} className="flex-1 cursor-pointer">
                           {option.option_text}
                         </Label>
                       </div>
@@ -283,13 +254,10 @@ export default function DoAssignmentPage() {
               >
                 Câu trước
               </Button>
-
               {currentQuestion === questions.length - 1 ? (
                 <Button
                   onClick={handleSubmit}
-                  disabled={
-                    Object.keys(userAnswers).length !== questions.length
-                  }
+                  disabled={Object.keys(userAnswers).length !== questions.length}
                 >
                   Nộp bài
                 </Button>
