@@ -285,19 +285,17 @@ export default function CreateAssignmentPage() {
       <Header />
       <main>
         <div className="container mx-auto px-4 py-8">
+
+
           <div className="mx-auto max-w-4xl">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
-                <h1 className="text-4xl font-bold">
-                  Tạo bài tập mới
-                </h1>
+                <h1 className="text-4xl font-bold">Tạo bài tập mới</h1>
               </div>
-              <p className="text-lg text-muted-foreground">
-                Xây dựng bài tập tùy chỉnh cho học sinh
-              </p>
+              <p className="text-lg text-muted-foreground">Xây dựng bài tập tùy chỉnh cho học sinh</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
