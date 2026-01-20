@@ -13,6 +13,10 @@ import { Label } from "@/components/ui/label"
 // 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Helper: tính tổng điểm fallback nếu BE không trả total_score
+const calcTotalScore = (questions = []) =>
+  questions.reduce((sum, q) => sum + Number(q.score || 0), 0)
+
 export default function DoAssignmentPage() {
   const router = useRouter()
   const params = useParams()
@@ -52,7 +56,13 @@ export default function DoAssignmentPage() {
           }))
         }
 
-        setAssignment(mappedAssignment)
+        // 🔹 Fallback total_score nếu backend không trả
+        setAssignment({
+          ...mappedAssignment,
+          total_score:
+            mappedAssignment.total_score ||
+            calcTotalScore(mappedAssignment.questions),
+        })
       } catch (err) {
         console.error(err)
         setError(err.message)
@@ -137,7 +147,9 @@ export default function DoAssignmentPage() {
               <CardDescription>Kết quả của bạn</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 text-center">
-              <div className="text-5xl font-bold text-primary">{score}/{assignment.total_score}</div>
+              <div className="text-5xl font-bold text-primary">
+                {score}/{assignment.total_score}
+              </div>
               <p className="mt-2 text-lg text-muted-foreground">{percentage}% điểm</p>
             </CardContent>
             <CardFooter className="flex gap-3">
