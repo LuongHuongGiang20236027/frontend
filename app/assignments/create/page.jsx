@@ -21,10 +21,19 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Header } from "@/components/header"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+// =========================
+// API CONFIG (FIX CRASH PROD)
+// =========================
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://backend-acbf.onrender.com"
 
 export default function CreateAssignmentPage() {
   const router = useRouter()
+
+  useEffect(() => {
+    console.log("🚀 API_URL =", API_URL)
+  }, [])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -45,11 +54,13 @@ export default function CreateAssignmentPage() {
     },
   ])
 
-  // 🔐 CHECK LOGIN
+  // =========================
+  // AUTH CHECK
+  // =========================
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) router.push("/login")
-  }, [])
+  }, [router])
 
   const totalScore = questions.reduce(
     (sum, q) => sum + q.score,
@@ -59,7 +70,6 @@ export default function CreateAssignmentPage() {
   // =========================
   // QUESTION HELPERS
   // =========================
-
   const addQuestion = () => {
     const newId = Math.max(...questions.map((q) => q.id)) + 1
     setQuestions([
@@ -192,7 +202,6 @@ export default function CreateAssignmentPage() {
   // =========================
   // SUBMIT
   // =========================
-
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -261,7 +270,7 @@ export default function CreateAssignmentPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          body: fd, // ❗ KHÔNG set Content-Type
+          body: fd,
         }
       )
 
@@ -275,7 +284,7 @@ export default function CreateAssignmentPage() {
       alert("🎉 Tạo bài tập thành công")
       router.push("/assignments/my-assignments")
     } catch (err) {
-      console.error(err)
+      console.error("SUBMIT ERROR:", err)
       alert("❌ Lỗi kết nối server")
     }
   }
@@ -285,58 +294,92 @@ export default function CreateAssignmentPage() {
       <Header />
       <main>
         <div className="container mx-auto px-4 py-8">
-
-
           <div className="mx-auto max-w-4xl">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
                   <BookOpen className="h-6 w-6 text-primary" />
                 </div>
-                <h1 className="text-4xl font-bold">Tạo bài tập mới</h1>
+                <h1 className="text-4xl font-bold">
+                  Tạo bài tập mới
+                </h1>
               </div>
-              <p className="text-lg text-muted-foreground">Xây dựng bài tập tùy chỉnh cho học sinh</p>
+              <p className="text-lg text-muted-foreground">
+                Xây dựng bài tập tùy chỉnh cho học sinh
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-6"
+            >
               {/* Thông tin bài tập */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Thông tin bài tập</CardTitle>
-                  <CardDescription>Tổng điểm: {totalScore}</CardDescription>
+                  <CardTitle>
+                    Thông tin bài tập
+                  </CardTitle>
+                  <CardDescription>
+                    Tổng điểm: {totalScore}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="title">
-                      Tiêu đề <span className="text-destructive">*</span>
+                      Tiêu đề{" "}
+                      <span className="text-destructive">
+                        *
+                      </span>
                     </Label>
                     <Input
                       id="title"
                       placeholder="Nhập tiêu đề bài tập"
                       value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          title: e.target.value,
+                        })
+                      }
                       required
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Mô tả</Label>
+                    <Label htmlFor="description">
+                      Mô tả
+                    </Label>
                     <Textarea
                       id="description"
                       placeholder="Mô tả ngắn gọn về bài tập"
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description:
+                            e.target.value,
+                        })
+                      }
                       rows={3}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="thumbnail">Ảnh bìa</Label>
+                    <Label htmlFor="thumbnail">
+                      Ảnh bìa
+                    </Label>
                     <Input
                       id="thumbnail"
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setFormData({ ...formData, thumbnail: e.target.files?.[0] })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          thumbnail:
+                            e.target.files?.[0] ||
+                            null,
+                        })
+                      }
                     />
                   </div>
                 </CardContent>
@@ -347,13 +390,21 @@ export default function CreateAssignmentPage() {
                 <Card key={question.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle>Câu hỏi {qIndex + 1}</CardTitle>
+                      <CardTitle>
+                        Câu hỏi {qIndex + 1}
+                      </CardTitle>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeQuestion(question.id)}
-                        disabled={questions.length === 1}
+                        onClick={() =>
+                          removeQuestion(
+                            question.id
+                          )
+                        }
+                        disabled={
+                          questions.length === 1
+                        }
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -362,29 +413,63 @@ export default function CreateAssignmentPage() {
 
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>Nội dung câu hỏi</Label>
+                      <Label>
+                        Nội dung câu hỏi
+                      </Label>
                       <Textarea
                         placeholder="Nhập nội dung câu hỏi"
-                        value={question.question_text}
-                        onChange={(e) => updateQuestion(question.id, "question_text", e.target.value)}
+                        value={
+                          question.question_text
+                        }
+                        onChange={(e) =>
+                          updateQuestion(
+                            question.id,
+                            "question_text",
+                            e.target.value
+                          )
+                        }
                         rows={2}
                       />
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Loại câu hỏi</Label>
+                        <Label>
+                          Loại câu hỏi
+                        </Label>
                         <RadioGroup
-                          value={question.question_type}
-                          onValueChange={(value) => updateQuestion(question.id, "question_type", value)}
+                          value={
+                            question.question_type
+                          }
+                          onValueChange={(value) =>
+                            updateQuestion(
+                              question.id,
+                              "question_type",
+                              value
+                            )
+                          }
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="single" id={`single-${question.id}`} />
-                            <Label htmlFor={`single-${question.id}`}>Chọn 1 đáp án</Label>
+                            <RadioGroupItem
+                              value="single"
+                              id={`single-${question.id}`}
+                            />
+                            <Label
+                              htmlFor={`single-${question.id}`}
+                            >
+                              Chọn 1 đáp án
+                            </Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="multiple" id={`multiple-${question.id}`} />
-                            <Label htmlFor={`multiple-${question.id}`}>Chọn nhiều đáp án</Label>
+                            <RadioGroupItem
+                              value="multiple"
+                              id={`multiple-${question.id}`}
+                            />
+                            <Label
+                              htmlFor={`multiple-${question.id}`}
+                            >
+                              Chọn nhiều đáp án
+                            </Label>
                           </div>
                         </RadioGroup>
                       </div>
@@ -395,7 +480,15 @@ export default function CreateAssignmentPage() {
                           type="number"
                           min="1"
                           value={question.score}
-                          onChange={(e) => updateQuestion(question.id, "score", Number.parseInt(e.target.value))}
+                          onChange={(e) =>
+                            updateQuestion(
+                              question.id,
+                              "score",
+                              Number.parseInt(
+                                e.target.value
+                              )
+                            )
+                          }
                         />
                       </div>
                     </div>
@@ -403,29 +496,120 @@ export default function CreateAssignmentPage() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <Label>Các đáp án</Label>
-                        <Button type="button" variant="outline" size="sm" onClick={() => addOption(question.id)}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            addOption(question.id)
+                          }
+                        >
                           <Plus className="mr-2 h-3 w-3" />
                           Thêm đáp án
                         </Button>
                       </div>
-                      {question.question_type === "single" ? (
+
+                      {question.question_type ===
+                        "single" ? (
                         <RadioGroup
-                          value={question.options.find(o => o.is_correct)?.id?.toString()}
-                          onValueChange={(value) =>
-                            toggleCorrectAnswer(question.id, Number(value))
+                          value={question.options
+                            .find(
+                              (o) =>
+                                o.is_correct
+                            )
+                            ?.id?.toString()}
+                          onValueChange={(
+                            value
+                          ) =>
+                            toggleCorrectAnswer(
+                              question.id,
+                              Number(value)
+                            )
                           }
                         >
-                          {question.options.map((option, oIndex) => (
-                            <div key={option.id} className="flex items-center gap-3">
-                              <RadioGroupItem
-                                value={option.id.toString()}
-                                id={`opt-${question.id}-${option.id}`}
+                          {question.options.map(
+                            (option, oIndex) => (
+                              <div
+                                key={option.id}
+                                className="flex items-center gap-3"
+                              >
+                                <RadioGroupItem
+                                  value={option.id.toString()}
+                                  id={`opt-${question.id}-${option.id}`}
+                                />
+                                <Input
+                                  placeholder={`Đáp án ${oIndex + 1
+                                    }`}
+                                  value={
+                                    option.option_text
+                                  }
+                                  onChange={(
+                                    e
+                                  ) =>
+                                    updateOption(
+                                      question.id,
+                                      option.id,
+                                      "option_text",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    removeOption(
+                                      question.id,
+                                      option.id
+                                    )
+                                  }
+                                  disabled={
+                                    question.options
+                                      .length === 2
+                                  }
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )
+                          )}
+                        </RadioGroup>
+                      ) : (
+                        question.options.map(
+                          (option, oIndex) => (
+                            <div
+                              key={option.id}
+                              className="flex items-center gap-3"
+                            >
+                              <Checkbox
+                                checked={
+                                  option.is_correct
+                                }
+                                onCheckedChange={(
+                                  checked
+                                ) =>
+                                  checked &&
+                                  toggleCorrectAnswer(
+                                    question.id,
+                                    option.id
+                                  )
+                                }
                               />
                               <Input
-                                placeholder={`Đáp án ${oIndex + 1}`}
-                                value={option.option_text}
+                                placeholder={`Đáp án ${oIndex + 1
+                                  }`}
+                                value={
+                                  option.option_text
+                                }
                                 onChange={(e) =>
-                                  updateOption(question.id, option.id, "option_text", e.target.value)
+                                  updateOption(
+                                    question.id,
+                                    option.id,
+                                    "option_text",
+                                    e.target.value
+                                  )
                                 }
                                 className="flex-1"
                               />
@@ -433,60 +617,53 @@ export default function CreateAssignmentPage() {
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => removeOption(question.id, option.id)}
-                                disabled={question.options.length === 2}
+                                onClick={() =>
+                                  removeOption(
+                                    question.id,
+                                    option.id
+                                  )
+                                }
+                                disabled={
+                                  question.options
+                                    .length === 2
+                                }
                               >
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
-                          ))}
-                        </RadioGroup>
-                      ) : (
-                        question.options.map((option, oIndex) => (
-                          <div key={option.id} className="flex items-center gap-3">
-                            <Checkbox
-                              checked={option.is_correct}
-                              onCheckedChange={() =>
-                                toggleCorrectAnswer(question.id, option.id)
-                              }
-                            />
-                            <Input
-                              placeholder={`Đáp án ${oIndex + 1}`}
-                              value={option.option_text}
-                              onChange={(e) =>
-                                updateOption(question.id, option.id, "option_text", e.target.value)
-                              }
-                              className="flex-1"
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeOption(question.id, option.id)}
-                              disabled={question.options.length === 2}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))
+                          )
+                        )
                       )}
-
-
                     </div>
                   </CardContent>
                 </Card>
               ))}
 
-              <Button type="button" variant="outline" onClick={addQuestion} className="w-full bg-transparent">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addQuestion}
+                className="w-full bg-transparent"
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Thêm câu hỏi
               </Button>
 
               <div className="flex gap-3">
-                <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    router.back()
+                  }
+                  className="flex-1"
+                >
                   Hủy
                 </Button>
-                <Button type="submit" className="flex-1">
+                <Button
+                  type="submit"
+                  className="flex-1"
+                >
                   Tạo bài tập
                 </Button>
               </div>

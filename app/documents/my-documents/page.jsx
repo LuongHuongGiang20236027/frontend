@@ -118,8 +118,8 @@ export default function MyDocumentsPage() {
           ? {
             ...doc,
             like_count: isLiked
-              ? doc.like_count - 1
-              : doc.like_count + 1,
+              ? Number(doc.like_count) - 1
+              : Number(doc.like_count) + 1,
           }
           : doc
       )
@@ -210,8 +210,8 @@ export default function MyDocumentsPage() {
                       >
                         <Heart
                           className={`h-5 w-5 ${isLiked
-                              ? "fill-red-500 text-red-500"
-                              : "text-gray-500"
+                            ? "fill-red-500 text-red-500"
+                            : "text-gray-500"
                             }`}
                         />
                       </button>
