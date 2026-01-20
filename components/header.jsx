@@ -35,11 +35,8 @@ export function Header() {
   useEffect(() => {
     const syncUser = () => {
       const tokenUser = localStorage.getItem("user")
-      if (tokenUser) {
-        setUser(JSON.parse(tokenUser))
-      } else {
-        setUser(null)
-      }
+      if (tokenUser) setUser(JSON.parse(tokenUser))
+      else setUser(null)
     }
 
     const handleUserLogin = () => syncUser()
@@ -60,7 +57,6 @@ export function Header() {
     setUser(null)
     localStorage.removeItem("token")
     localStorage.removeItem("user")
-
     window.dispatchEvent(new Event("user-logout"))
     router.push("/")
     setMobileOpen(false)
@@ -71,23 +67,34 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
 
-          {/* LEFT */}
-          <div className="flex items-center gap-4">
+          {/* LEFT: Mobile menu button + Logo */}
+          <div className="flex items-center gap-2">
+            {/* MOBILE MENU BUTTON (LEFT) */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileOpen(!mobileOpen)}
+            >
+              <Menu className="h-6 w-6" />
+            </Button>
+
+            {/* LOGO */}
             <Link
               href="/"
               className="flex items-center gap-2"
               onClick={() => setMobileOpen(false)}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                <BookOpen className="h-6 w-6 text-primary-foreground" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
+                <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">
+              <span className="text-lg font-bold text-foreground">
                 Smart Edu
               </span>
             </Link>
 
             {/* DESKTOP MENU */}
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden md:flex items-center gap-6 ml-6">
               <Link
                 href="/"
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
@@ -153,101 +160,88 @@ export function Header() {
             </nav>
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT: Avatar / Auth (ALWAYS TOP-RIGHT) */}
           <div className="flex items-center gap-2">
-            {/* MOBILE MENU BUTTON */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              <Menu className="h-6 w-6" />
-            </Button>
-
-            {/* USER / AUTH (DESKTOP) */}
-            <div className="hidden md:flex items-center gap-3">
-              {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className="relative h-10 w-10 rounded-full"
-                    >
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={user?.avatar || ""} />
-                        <AvatarFallback
-                          className={`${getAvatarColor(
-                            user?.name
-                          )} text-white font-semibold`}
-                        >
-                          {getAvatarFallback(user?.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="end">
-                    <div className="flex items-center gap-2 p-2">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage
-                          src={user?.avatar || ""}
-                          alt={user?.name || "User"}
-                        />
-                        <AvatarFallback
-                          className={`${getAvatarColor(
-                            user?.name
-                          )} font-semibold`}
-                        >
-                          {getAvatarFallback(user?.name)}
-                        </AvatarFallback>
-                      </Avatar>
-
-                      <div className="flex flex-col">
-                        <p className="text-sm font-medium">
-                          {user?.name || "Người dùng"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {user?.email || ""}
-                        </p>
-                        <p className="text-xs text-primary mt-0.5">
-                          {user?.role === "teacher"
-                            ? "Giáo viên"
-                            : "Học sinh"}
-                        </p>
-                      </div>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => router.push("/profile")}
-                      className="flex items-center gap-2 cursor-pointer"
-                    >
-                      <User className="h-4 w-4" />
-                      Hồ sơ
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={logout}
-                      className="flex items-center gap-2 cursor-pointer text-destructive"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Đăng xuất
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <div className="flex items-center gap-2">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    onClick={() => setLoginOpen(true)}
+                    className="relative h-10 w-10 rounded-full"
                   >
-                    Đăng nhập
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user?.avatar || ""} />
+                      <AvatarFallback
+                        className={`${getAvatarColor(
+                          user?.name
+                        )} text-white font-semibold`}
+                      >
+                        {getAvatarFallback(user?.name)}
+                      </AvatarFallback>
+                    </Avatar>
                   </Button>
-                  <Button onClick={() => setRegisterOpen(true)}>
-                    Đăng ký
-                  </Button>
-                </div>
-              )}
-            </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <div className="flex items-center gap-2 p-2">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage
+                        src={user?.avatar || ""}
+                        alt={user?.name || "User"}
+                      />
+                      <AvatarFallback
+                        className={`${getAvatarColor(
+                          user?.name
+                        )} font-semibold`}
+                      >
+                        {getAvatarFallback(user?.name)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex flex-col">
+                      <p className="text-sm font-medium">
+                        {user?.name || "Người dùng"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {user?.email || ""}
+                      </p>
+                      <p className="text-xs text-primary mt-0.5">
+                        {user?.role === "teacher"
+                          ? "Giáo viên"
+                          : "Học sinh"}
+                      </p>
+                    </div>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => router.push("/profile")}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <User className="h-4 w-4" />
+                    Hồ sơ
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={logout}
+                    className="flex items-center gap-2 cursor-pointer text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setLoginOpen(true)}
+                >
+                  Đăng nhập
+                </Button>
+                <Button onClick={() => setRegisterOpen(true)}>
+                  Đăng ký
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
