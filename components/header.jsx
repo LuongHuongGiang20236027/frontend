@@ -26,21 +26,31 @@ export function Header() {
 
   // lắng nghe sự kiện đăng nhập / đăng xuất từ các component khác
   useEffect(() => {
-    const handleUserLogin = (e) => setUser(e.detail)
-    const handleUserLogout = () => setUser(null)
-    // đăng ký sự kiện
+    const syncUser = () => {
+      const tokenUser = localStorage.getItem("user")
+      if (tokenUser) {
+        setUser(JSON.parse(tokenUser))
+      } else {
+        setUser(null)
+      }
+    }
+
+    // Lắng nghe event
+    const handleUserLogin = () => syncUser()
+    const handleUserLogout = () => syncUser()
+
     window.addEventListener("user-login", handleUserLogin)
     window.addEventListener("user-logout", handleUserLogout)
-    // khởi tạo user từ localStorage (nếu có)
-    const tokenUser = localStorage.getItem("user")
-    if (tokenUser) setUser(JSON.parse(tokenUser))
+
+    // Load lần đầu
+    syncUser()
 
     return () => {
-      // hủy đăng ký sự kiện
       window.removeEventListener("user-login", handleUserLogin)
       window.removeEventListener("user-logout", handleUserLogout)
     }
   }, [])
+
 
   // xử lý đăng xuất
   const logout = () => {
