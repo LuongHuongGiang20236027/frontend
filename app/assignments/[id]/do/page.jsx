@@ -147,7 +147,8 @@ export default function DoAssignmentPage() {
       const token = getToken()
 
       if (!token) {
-        alert("Vui lòng đăng nhập để nộp bài")
+
+
         router.push("/login")
         return
       }
@@ -189,7 +190,8 @@ export default function DoAssignmentPage() {
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
-      alert(err.message || "Có lỗi khi nộp bài")
+
+
     }
   }
 

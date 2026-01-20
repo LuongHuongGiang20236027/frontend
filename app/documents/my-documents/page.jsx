@@ -97,7 +97,7 @@ export default function MyDocumentsPage() {
       setDocuments((prev) => prev.filter((d) => d.id !== docId))
     } catch (err) {
       console.error(err)
-      alert("Xóa thất bại")
+
     }
   }
 

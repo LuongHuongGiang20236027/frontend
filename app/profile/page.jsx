@@ -118,7 +118,7 @@ export default function ProfilePage() {
       })
 
       if (!res.ok) {
-        alert("❌ Cập nhật thất bại!")
+
         return
       }
 
@@ -135,18 +135,18 @@ export default function ProfilePage() {
         new CustomEvent("user-login", { detail: data.user })
       )
 
-      alert("✅ Cập nhật thành công!")
+
       setIsEditing(false)
     } catch (err) {
       console.error(err)
-      alert("❌ Lỗi kết nối server")
+
     }
   }
 
   // 🔹 xử lý đổi mật khẩu
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      alert("❌ Mật khẩu không khớp")
+
       return
     }
 
@@ -170,17 +170,17 @@ export default function ProfilePage() {
       })
 
       if (!res.ok) {
-        alert("❌ Mật khẩu hiện tại sai!")
+
         return
       }
 
-      alert("✅ Đổi mật khẩu thành công!")
+
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
     } catch (err) {
       console.error(err)
-      alert("❌ Lỗi kết nối server")
+
     }
   }
 

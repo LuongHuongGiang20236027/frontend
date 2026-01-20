@@ -96,7 +96,7 @@ export default function HomePage() {
     const token = localStorage.getItem("token")
 
     if (!token) {
-      alert("Vui lòng đăng nhập để thích tài liệu")
+
       router.push("/login")
       return
     }
@@ -164,7 +164,8 @@ export default function HomePage() {
     const token = localStorage.getItem("token")
 
     if (!token) {
-      alert("Vui lòng đăng nhập để làm bài tập")
+
+
       router.push("/login")
       return
     }

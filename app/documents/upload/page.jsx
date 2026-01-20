@@ -44,13 +44,13 @@ export default function UploadDocumentPage() {
 
     const token = localStorage.getItem("token")
     if (!token) {
-      alert("Bạn chưa đăng nhập")
+
       router.push("/login")
       return
     }
 
     if (!formData.title || !formData.file) {
-      alert("Vui lòng nhập tiêu đề và chọn file PDF")
+
       return
     }
 
@@ -77,15 +77,15 @@ export default function UploadDocumentPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        alert(data.error || "Upload thất bại")
+
         return
       }
 
-      alert("✅ Tải lên tài liệu thành công!")
+
       router.push("/documents/my-documents")
     } catch (err) {
       console.error(err)
-      alert("❌ Lỗi kết nối server")
+
     } finally {
       setUploading(false)
     }

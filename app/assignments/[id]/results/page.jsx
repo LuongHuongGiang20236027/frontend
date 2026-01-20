@@ -32,7 +32,7 @@ export default function AssignmentResultsPage() {
         const token = localStorage.getItem("token")
 
         if (!token) {
-          alert("Vui lòng đăng nhập")
+
           router.push("/login")
           return
         }

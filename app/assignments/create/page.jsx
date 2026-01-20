@@ -56,7 +56,7 @@ export default function CreateAssignmentPage() {
   useEffect(() => {
     if (!API_URL) {
       console.error("❌ NEXT_PUBLIC_API_URL chưa được set trên Vercel")
-      alert("Lỗi cấu hình hệ thống. Liên hệ admin.")
+
     }
   }, [])
 
@@ -213,7 +213,7 @@ export default function CreateAssignmentPage() {
     e.preventDefault()
 
     if (!API_URL) {
-      alert("Chưa cấu hình API_URL trên hệ thống")
+
       return
     }
 
@@ -224,7 +224,7 @@ export default function CreateAssignmentPage() {
     }
 
     if (!formData.title.trim()) {
-      alert("Vui lòng nhập tiêu đề bài tập")
+
       return
     }
 
@@ -232,18 +232,18 @@ export default function CreateAssignmentPage() {
       const q = questions[i]
 
       if (!q.question_text.trim()) {
-        alert(`Câu hỏi ${i + 1} chưa có nội dung`)
+
         return
       }
 
       if (!q.options.some((o) => o.is_correct)) {
-        alert(`Câu hỏi ${i + 1} chưa có đáp án đúng`)
+
         return
       }
 
       for (const o of q.options) {
         if (!o.option_text.trim()) {
-          alert(`Câu hỏi ${i + 1} có đáp án trống`)
+
           return
         }
       }
@@ -289,15 +289,15 @@ export default function CreateAssignmentPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        alert(data.error || "Tạo bài tập thất bại")
+
         return
       }
 
-      alert("🎉 Tạo bài tập thành công")
+
       router.push("/assignments/my-assignments")
     } catch (err) {
       console.error(err)
-      alert("❌ Lỗi kết nối server")
+
     }
   }
 
