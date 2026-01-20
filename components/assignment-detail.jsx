@@ -37,7 +37,7 @@ export function AssignmentDetail({ assignment }) {
   // Nhấn bắt đầu làm bài
   const handleStart = () => {
     if (!user || !token) {
-
+      alert("Vui lòng đăng nhập để làm bài tập")
       return
     }
     setIsStarted(true)

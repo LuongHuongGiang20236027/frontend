@@ -145,8 +145,8 @@ export default function CompletedAssignmentsPage() {
                           </span>
                           <span
                             className={`text-lg font-bold ${isPassed
-                                ? "text-primary"
-                                : "text-destructive"
+                              ? "text-primary"
+                              : "text-destructive"
                               }`}
                           >
                             {s.score}/{s.total_score}

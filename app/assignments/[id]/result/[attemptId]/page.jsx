@@ -29,7 +29,7 @@ export default function AssignmentResultPage() {
         const token = localStorage.getItem("token")
 
         if (!token) {
-
+          alert("Vui lòng đăng nhập để xem kết quả")
           router.push("/login")
           return
         }

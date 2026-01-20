@@ -60,7 +60,7 @@ export default function ViewAssignmentPage() {
     const user = localStorage.getItem("user")
 
     if (!user) {
-
+      alert("Vui lòng đăng nhập để làm bài tập")
       return
     }
 

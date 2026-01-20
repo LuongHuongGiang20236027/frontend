@@ -101,7 +101,7 @@ export default function MyAssignmentsPage() {
       )
     } catch (err) {
       console.error(err)
-
+      alert("Xóa thất bại")
     }
   }
 

@@ -45,7 +45,7 @@ export default function AssignmentsPage() {
     const token = localStorage.getItem("token")
 
     if (!token) {
-
+      alert("Vui lòng đăng nhập để làm bài tập")
       router.push("/login")
       return
     }

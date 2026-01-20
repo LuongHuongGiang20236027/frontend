@@ -57,7 +57,7 @@ export function DocumentDetail({ document: doc }) {
   const handleLike = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
-
+      alert("Vui lòng đăng nhập để thích tài liệu")
       return
     }
 
@@ -96,7 +96,7 @@ export function DocumentDetail({ document: doc }) {
   const handleDownload = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
-
+      alert("Vui lòng đăng nhập để tải tài liệu")
       return
     }
 
@@ -127,7 +127,7 @@ export function DocumentDetail({ document: doc }) {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error("Download failed", err)
-
+      alert("Tải tài liệu thất bại")
     }
   }
 

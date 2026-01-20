@@ -25,12 +25,12 @@ export function RegisterDialog({ open, onOpenChange }) {
     e.preventDefault()
 
     if (password !== confirmPassword) {
-
+      alert("Mật khẩu xác nhận không khớp!")
       return
     }
 
     if (!role) {
-
+      alert("Vui lòng chọn vai trò!")
       return
     }
 
@@ -55,9 +55,9 @@ export function RegisterDialog({ open, onOpenChange }) {
       const data = await res.json()
 
       if (!res.ok) {
-
+        alert(data.error || "Đăng ký thất bại")
       } else {
-
+        alert("Đăng ký thành công!")
 
         // 🔹 Lưu vào localStorage
         if (typeof window !== "undefined") {
@@ -84,7 +84,7 @@ export function RegisterDialog({ open, onOpenChange }) {
       }
     } catch (err) {
       console.error(err)
-
+      alert("Lỗi kết nối server")
     }
 
     setLoading(false)
