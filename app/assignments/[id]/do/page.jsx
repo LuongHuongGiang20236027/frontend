@@ -129,7 +129,11 @@ export default function DoAssignmentPage() {
   }
 
   if (isSubmitted) {
-    const percentage = ((score / assignment.total_score) * 100).toFixed(0)
+    const realTotal = calcTotalScore(assignment.questions)
+    const percentage = realTotal
+      ? ((score / realTotal) * 100).toFixed(0)
+      : 0
+
     return (
       <div className="min-h-screen">
         <Header />
@@ -148,7 +152,7 @@ export default function DoAssignmentPage() {
             </CardHeader>
             <CardContent className="space-y-6 text-center">
               <div className="text-5xl font-bold text-primary">
-                {score}/{assignment.total_score}
+                {score}/{realTotal}
               </div>
               <p className="mt-2 text-lg text-muted-foreground">{percentage}% điểm</p>
             </CardContent>
