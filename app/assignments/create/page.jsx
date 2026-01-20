@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { BookOpen, Plus, Trash2, X } from "lucide-react"
+
 import {
   Card,
   CardContent,
@@ -21,19 +22,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { Header } from "@/components/header"
 
-// =========================
-// API CONFIG (FIX CRASH PROD)
-// =========================
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://backend-acbf.onrender.com"
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function CreateAssignmentPage() {
   const router = useRouter()
-
-  useEffect(() => {
-    console.log("🚀 API_URL =", API_URL)
-  }, [])
 
   const [formData, setFormData] = useState({
     title: "",
@@ -54,24 +46,35 @@ export default function CreateAssignmentPage() {
     },
   ])
 
-  // =========================
-  // AUTH CHECK
-  // =========================
+  // 🔐 CHECK LOGIN
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) router.push("/login")
   }, [router])
 
+  // Guard nếu quên set env trên Vercel
+  useEffect(() => {
+    if (!API_URL) {
+      console.error("❌ NEXT_PUBLIC_API_URL chưa được set trên Vercel")
+      alert("Lỗi cấu hình hệ thống. Liên hệ admin.")
+    }
+  }, [])
+
   const totalScore = questions.reduce(
-    (sum, q) => sum + q.score,
+    (sum, q) => sum + (Number(q.score) || 0),
     0
   )
 
   // =========================
   // QUESTION HELPERS
   // =========================
+
   const addQuestion = () => {
-    const newId = Math.max(...questions.map((q) => q.id)) + 1
+    const newId =
+      questions.length > 0
+        ? Math.max(...questions.map((q) => q.id)) + 1
+        : 1
+
     setQuestions([
       ...questions,
       {
@@ -108,7 +111,10 @@ export default function CreateAssignmentPage() {
       questions.map((q) => {
         if (q.id === questionId) {
           const newOptionId =
-            Math.max(...q.options.map((o) => o.id)) + 1
+            q.options.length > 0
+              ? Math.max(...q.options.map((o) => o.id)) + 1
+              : 1
+
           return {
             ...q,
             options: [
@@ -202,8 +208,14 @@ export default function CreateAssignmentPage() {
   // =========================
   // SUBMIT
   // =========================
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!API_URL) {
+      alert("Chưa cấu hình API_URL trên hệ thống")
+      return
+    }
 
     const token = localStorage.getItem("token")
     if (!token) {
@@ -270,7 +282,7 @@ export default function CreateAssignmentPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          body: fd,
+          body: fd, // ❗ KHÔNG set Content-Type
         }
       )
 
@@ -284,7 +296,7 @@ export default function CreateAssignmentPage() {
       alert("🎉 Tạo bài tập thành công")
       router.push("/assignments/my-assignments")
     } catch (err) {
-      console.error("SUBMIT ERROR:", err)
+      console.error(err)
       alert("❌ Lỗi kết nối server")
     }
   }
@@ -309,16 +321,11 @@ export default function CreateAssignmentPage() {
               </p>
             </div>
 
-            <form
-              onSubmit={handleSubmit}
-              className="space-y-6"
-            >
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Thông tin bài tập */}
               <Card>
                 <CardHeader>
-                  <CardTitle>
-                    Thông tin bài tập
-                  </CardTitle>
+                  <CardTitle>Thông tin bài tập</CardTitle>
                   <CardDescription>
                     Tổng điểm: {totalScore}
                   </CardDescription>
@@ -327,9 +334,7 @@ export default function CreateAssignmentPage() {
                   <div className="space-y-2">
                     <Label htmlFor="title">
                       Tiêu đề{" "}
-                      <span className="text-destructive">
-                        *
-                      </span>
+                      <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="title"
@@ -346,9 +351,7 @@ export default function CreateAssignmentPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">
-                      Mô tả
-                    </Label>
+                    <Label htmlFor="description">Mô tả</Label>
                     <Textarea
                       id="description"
                       placeholder="Mô tả ngắn gọn về bài tập"
@@ -356,8 +359,7 @@ export default function CreateAssignmentPage() {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          description:
-                            e.target.value,
+                          description: e.target.value,
                         })
                       }
                       rows={3}
@@ -365,9 +367,7 @@ export default function CreateAssignmentPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="thumbnail">
-                      Ảnh bìa
-                    </Label>
+                    <Label htmlFor="thumbnail">Ảnh bìa</Label>
                     <Input
                       id="thumbnail"
                       type="file"
@@ -376,8 +376,7 @@ export default function CreateAssignmentPage() {
                         setFormData({
                           ...formData,
                           thumbnail:
-                            e.target.files?.[0] ||
-                            null,
+                            e.target.files?.[0] || null,
                         })
                       }
                     />
@@ -398,13 +397,9 @@ export default function CreateAssignmentPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() =>
-                          removeQuestion(
-                            question.id
-                          )
+                          removeQuestion(question.id)
                         }
-                        disabled={
-                          questions.length === 1
-                        }
+                        disabled={questions.length === 1}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -413,14 +408,10 @@ export default function CreateAssignmentPage() {
 
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label>
-                        Nội dung câu hỏi
-                      </Label>
+                      <Label>Nội dung câu hỏi</Label>
                       <Textarea
                         placeholder="Nhập nội dung câu hỏi"
-                        value={
-                          question.question_text
-                        }
+                        value={question.question_text}
                         onChange={(e) =>
                           updateQuestion(
                             question.id,
@@ -434,13 +425,9 @@ export default function CreateAssignmentPage() {
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>
-                          Loại câu hỏi
-                        </Label>
+                        <Label>Loại câu hỏi</Label>
                         <RadioGroup
-                          value={
-                            question.question_type
-                          }
+                          value={question.question_type}
                           onValueChange={(value) =>
                             updateQuestion(
                               question.id,
@@ -485,7 +472,7 @@ export default function CreateAssignmentPage() {
                               question.id,
                               "score",
                               Number.parseInt(
-                                e.target.value
+                                e.target.value || "0"
                               )
                             )
                           }
@@ -512,15 +499,12 @@ export default function CreateAssignmentPage() {
                       {question.question_type ===
                         "single" ? (
                         <RadioGroup
-                          value={question.options
-                            .find(
-                              (o) =>
-                                o.is_correct
-                            )
-                            ?.id?.toString()}
-                          onValueChange={(
-                            value
-                          ) =>
+                          value={
+                            question.options
+                              .find((o) => o.is_correct)
+                              ?.id?.toString() || ""
+                          }
+                          onValueChange={(value) =>
                             toggleCorrectAnswer(
                               question.id,
                               Number(value)
@@ -540,12 +524,8 @@ export default function CreateAssignmentPage() {
                                 <Input
                                   placeholder={`Đáp án ${oIndex + 1
                                     }`}
-                                  value={
-                                    option.option_text
-                                  }
-                                  onChange={(
-                                    e
-                                  ) =>
+                                  value={option.option_text}
+                                  onChange={(e) =>
                                     updateOption(
                                       question.id,
                                       option.id,
@@ -566,8 +546,8 @@ export default function CreateAssignmentPage() {
                                     )
                                   }
                                   disabled={
-                                    question.options
-                                      .length === 2
+                                    question.options.length ===
+                                    2
                                   }
                                 >
                                   <X className="h-4 w-4" />
@@ -584,13 +564,8 @@ export default function CreateAssignmentPage() {
                               className="flex items-center gap-3"
                             >
                               <Checkbox
-                                checked={
-                                  option.is_correct
-                                }
-                                onCheckedChange={(
-                                  checked
-                                ) =>
-                                  checked &&
+                                checked={option.is_correct}
+                                onCheckedChange={() =>
                                   toggleCorrectAnswer(
                                     question.id,
                                     option.id
@@ -600,9 +575,7 @@ export default function CreateAssignmentPage() {
                               <Input
                                 placeholder={`Đáp án ${oIndex + 1
                                   }`}
-                                value={
-                                  option.option_text
-                                }
+                                value={option.option_text}
                                 onChange={(e) =>
                                   updateOption(
                                     question.id,
@@ -624,8 +597,8 @@ export default function CreateAssignmentPage() {
                                   )
                                 }
                                 disabled={
-                                  question.options
-                                    .length === 2
+                                  question.options.length ===
+                                  2
                                 }
                               >
                                 <X className="h-4 w-4" />
@@ -653,17 +626,12 @@ export default function CreateAssignmentPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() =>
-                    router.back()
-                  }
+                  onClick={() => router.back()}
                   className="flex-1"
                 >
                   Hủy
                 </Button>
-                <Button
-                  type="submit"
-                  className="flex-1"
-                >
+                <Button type="submit" className="flex-1">
                   Tạo bài tập
                 </Button>
               </div>
