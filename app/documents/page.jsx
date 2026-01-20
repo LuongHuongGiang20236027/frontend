@@ -1,324 +1,241 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react"
-import { Header } from "@/components/header"
+import Link from "next/link"
+import { FileText, Heart } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { Header } from "@/components/header"
 
 // 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-export default function DoAssignmentPage() {
-  const router = useRouter()
-  const params = useParams()
-  const [assignment, setAssignment] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+// 🔹 Helper lấy JWT token
+const getToken = () => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("token")
+}
 
-  const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [userAnswers, setUserAnswers] = useState({})
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [score, setScore] = useState(0)
+export default function DocumentsPage() {
+  const [documents, setDocuments] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [likedDocs, setLikedDocs] = useState(new Set())
 
-  // 🔹 Fetch assignment từ backend
   useEffect(() => {
-    if (!params?.id || !API_URL) return
+    init()
+  }, [])
 
-    const fetchAssignment = async () => {
-      try {
-        const res = await fetch(
-          `${API_URL}/api/assignments/${params.id}`
-        )
-
-        if (!res.ok) {
-          if (res.status === 404) router.replace("/404")
-          throw new Error("Bài tập không tìm thấy")
-        }
-
-        const data = await res.json()
-
-        // 🔹 Map dữ liệu FE dùng
-        const mappedAssignment = {
-          ...data.assignment,
-          questions: data.assignment.questions.map(q => ({
-            ...q,
-            question_text: q.content,
-            question_type: q.type,
-            options: q.answers.map(a => ({
-              id: a.id,
-              option_text: a.content
-            }))
-          }))
-        }
-
-        setAssignment(mappedAssignment)
-      } catch (err) {
-        console.error(err)
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchAssignment()
-  }, [params?.id, router, API_URL])
-
-  if (loading) return <div className="text-center mt-20">Đang tải bài tập...</div>
-  if (error) return <div className="text-center mt-20 text-red-500">{error}</div>
-  if (!assignment) return null
-
-  const questions = assignment.questions || []
-
-  const handleAnswerChange = (questionId, answerId, isMultiple) => {
-    if (isMultiple) {
-      const current = userAnswers[questionId] || []
-      const newAnswers = current.includes(answerId)
-        ? current.filter((id) => id !== answerId)
-        : [...current, answerId]
-      setUserAnswers({ ...userAnswers, [questionId]: newAnswers })
-    } else {
-      setUserAnswers({ ...userAnswers, [questionId]: [answerId] })
-    }
-  }
-
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
-    }
-  }
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1)
-    }
-  }
-
-  // 🔹 Submit bài
-  const handleSubmit = async () => {
+  const init = async () => {
     try {
-      const answersPayload = questions.map(q => ({
-        question_id: q.id,
-        answer_id: userAnswers[q.id] || []
-      }))
+      const token = getToken()
 
-      const res = await fetch(
-        `${API_URL}/api/assignments/submit`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            assignment_id: assignment.id,
-            answers: answersPayload,
-          }),
-        }
-      )
+      // luôn load tài liệu
+      await fetchDocuments()
 
-      if (!res.ok) {
-        throw new Error("Nộp bài thất bại")
+      // nếu có login → load liked
+      if (token) {
+        await fetchLikedDocuments(token)
       }
-
-      const data = await res.json()
-      setScore(data.score)
-      setIsSubmitted(true)
     } catch (err) {
       console.error(err)
-      alert("Có lỗi khi nộp bài")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // 🔹 Màn hình kết quả
-  if (isSubmitted) {
-    const percentage = ((score / assignment.total_score) * 100).toFixed(0)
-
-    return (
-      <div className="min-h-screen">
-        <Header />
-        <main className="container mx-auto px-4 py-8">
-          <Card className="mx-auto max-w-2xl">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                {Number.parseInt(percentage) >= 70 ? (
-                  <CheckCircle2 className="h-12 w-12 text-primary" />
-                ) : (
-                  <XCircle className="h-12 w-12 text-destructive" />
-                )}
-              </div>
-              <CardTitle className="text-3xl">Hoàn thành bài tập!</CardTitle>
-              <CardDescription>Kết quả của bạn</CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-6 text-center">
-              <div className="text-5xl font-bold text-primary">
-                {score}/{assignment.total_score}
-              </div>
-              <p className="mt-2 text-lg text-muted-foreground">
-                {percentage}% điểm
-              </p>
-            </CardContent>
-
-            <CardFooter className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/assignments")}
-                className="flex-1"
-              >
-                Danh sách bài tập
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsSubmitted(false)
-                  setCurrentQuestion(0)
-                  setUserAnswers({})
-                  setScore(0)
-                }}
-                className="flex-1"
-              >
-                Làm lại
-              </Button>
-            </CardFooter>
-          </Card>
-        </main>
-      </div>
-    )
+  // 🔹 Lấy danh sách tài liệu
+  const fetchDocuments = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents`)
+      const data = await res.json()
+      setDocuments(data.documents || [])
+    } catch (err) {
+      console.error(err)
+    }
   }
 
-  const question = questions[currentQuestion]
-  const isMultiple = question.question_type === "multiple"
-  const userAnswer = userAnswers[question.id] || []
+  // 🔹 Lấy danh sách đã like
+  const fetchLikedDocuments = async (token) => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents/liked`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) return
+
+      const data = await res.json()
+      setLikedDocs(new Set((data.documents || []).map((d) => d.id)))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 🔹 Like / Unlike
+  const handleLike = async (docId) => {
+    const token = getToken()
+    if (!token) {
+      alert("Vui lòng đăng nhập để thích tài liệu")
+      return
+    }
+
+    const isLiked = likedDocs.has(docId)
+
+    // ✅ Optimistic UI
+    setLikedDocs((prev) => {
+      const next = new Set(prev)
+      isLiked ? next.delete(docId) : next.add(docId)
+      return next
+    })
+
+    setDocuments((prev) =>
+      prev.map((doc) =>
+        doc.id === docId
+          ? {
+            ...doc,
+            like_count: isLiked
+              ? Number(doc.like_count) - 1
+              : Number(doc.like_count) + 1,
+          }
+          : doc
+      )
+    )
+
+    try {
+      const res = await fetch(`${API_URL}/api/documents/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          document_id: docId,
+        }),
+      })
+
+      if (!res.ok) {
+        throw new Error("Like failed")
+      }
+    } catch (err) {
+      console.error("Like failed", err)
+
+      // 🔄 rollback
+      setLikedDocs((prev) => {
+        const next = new Set(prev)
+        isLiked ? next.add(docId) : next.delete(docId)
+        return next
+      })
+
+      setDocuments((prev) =>
+        prev.map((doc) =>
+          doc.id === docId
+            ? {
+              ...doc,
+              like_count: isLiked
+                ? Number(doc.like_count) + 1
+                : Number(doc.like_count) - 1,
+            }
+            : doc
+        )
+      )
+    }
+  }
 
   return (
     <div className="min-h-screen">
       <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-3xl">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Câu {currentQuestion + 1} / {questions.length}
-              </p>
-              <div className="mt-2 h-2 w-64 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-primary transition-all"
-                  style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
 
-            <div className="text-sm font-medium text-primary">
-              {Object.keys(userAnswers).length} / {questions.length} đã trả lời
+      <main>
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/20">
+                <FileText className="h-6 w-6" />
+              </div>
+              <h1 className="text-4xl font-bold">Tất cả tài liệu</h1>
             </div>
+            {!isLoading && (
+              <p className="text-lg text-muted-foreground">
+                {documents.length} tài liệu
+              </p>
+            )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl text-balance">
-                {question.question_text}
-              </CardTitle>
-              <CardDescription>
-                {isMultiple
-                  ? "Chọn tất cả đáp án đúng"
-                  : "Chọn một đáp án"}{" "}
-                • {question.score} điểm
-              </CardDescription>
-            </CardHeader>
+          {isLoading ? (
+            <p>Đang tải dữ liệu...</p>
+          ) : documents.length === 0 ? (
+            <p className="text-muted-foreground">Chưa có tài liệu nào</p>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {documents.map((doc) => {
+                const isLiked = likedDocs.has(doc.id)
 
-            <CardContent>
-              {isMultiple ? (
-                <div className="space-y-3">
-                  {question.options.map(option => (
-                    <div
-                      key={option.id}
-                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                    >
-                      <Checkbox
-                        id={`option-${option.id}`}
-                        checked={userAnswer.includes(option.id)}
-                        onCheckedChange={() =>
-                          handleAnswerChange(
-                            question.id,
-                            option.id,
-                            true
-                          )
-                        }
+                return (
+                  <Card
+                    key={doc.id}
+                    className="group overflow-hidden hover:shadow-lg transition-shadow"
+                  >
+                    <div className="relative aspect-4/3 overflow-hidden bg-muted">
+                      <img
+                        src={`${API_URL}${doc.thumbnail}`}
+                        alt={doc.title}
+                        className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                       />
-                      <Label
-                        htmlFor={`option-${option.id}`}
-                        className="flex-1 cursor-pointer"
+
+                      {/* ❤️ Like button */}
+                      <button
+                        onClick={() => handleLike(doc.id)}
+                        className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow hover:scale-110 transition"
                       >
-                        {option.option_text}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <RadioGroup
-                  value={userAnswer[0]?.toString()}
-                  onValueChange={val =>
-                    handleAnswerChange(
-                      question.id,
-                      Number.parseInt(val),
-                      false
-                    )
-                  }
-                >
-                  <div className="space-y-3">
-                    {question.options.map(option => (
-                      <div
-                        key={option.id}
-                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
-                      >
-                        <RadioGroupItem
-                          value={option.id.toString()}
-                          id={`option-${option.id}`}
+                        <Heart
+                          className={`h-5 w-5 ${isLiked
+                            ? "fill-red-500 text-red-500"
+                            : "text-gray-500"
+                            }`}
                         />
-                        <Label
-                          htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
-                          {option.option_text}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
-              )}
-            </CardContent>
+                      </button>
+                    </div>
 
-            <CardFooter className="flex justify-between">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentQuestion === 0}
-              >
-                Câu trước
-              </Button>
+                    <CardHeader>
+                      <CardTitle className="line-clamp-1">
+                        {doc.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-2">
+                        {doc.description}
+                      </CardDescription>
+                    </CardHeader>
 
-              {currentQuestion === questions.length - 1 ? (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={
-                    Object.keys(userAnswers).length !== questions.length
-                  }
-                >
-                  Nộp bài
-                </Button>
-              ) : (
-                <Button onClick={handleNext}>
-                  Câu tiếp theo
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">
+                        {doc.like_count} lượt thích
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Tạo bởi {doc.author_name}
+                      </p>
+                    </CardContent>
+
+                    <CardFooter>
+                      <Button
+                        className="w-full"
+                        variant="secondary"
+                        asChild
+                      >
+                        <Link href={`/documents/${doc.id}`}>Xem</Link>
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
         </div>
       </main>
     </div>
