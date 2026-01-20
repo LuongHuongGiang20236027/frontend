@@ -1,11 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, XCircle } from "lucide-react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter
+} from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -13,9 +20,16 @@ import { Label } from "@/components/ui/label"
 // 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Helper lấy JWT token
+const getToken = () => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("token")
+}
+
 export default function DoAssignmentPage() {
   const router = useRouter()
   const params = useParams()
+
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -25,14 +39,26 @@ export default function DoAssignmentPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
 
-  // 🔹 Fetch assignment từ backend
+  // 🔹 Load assignment
   useEffect(() => {
     if (!params?.id || !API_URL) return
 
     const fetchAssignment = async () => {
       try {
+        const token = getToken()
+
+        if (!token) {
+          router.push("/login")
+          return
+        }
+
         const res = await fetch(
-          `${API_URL}/api/assignments/${params.id}`
+          `${API_URL}/api/assignments/${params.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
         )
 
         if (!res.ok) {
@@ -42,13 +68,14 @@ export default function DoAssignmentPage() {
 
         const data = await res.json()
 
-        // 🔹 Map dữ liệu FE dùng
+        // 🔹 Map lại format cho FE
         const mappedAssignment = {
           ...data.assignment,
           questions: data.assignment.questions.map(q => ({
-            ...q,
+            id: q.id,
             question_text: q.content,
             question_type: q.type,
+            score: q.score,
             options: q.answers.map(a => ({
               id: a.id,
               option_text: a.content
@@ -66,77 +93,110 @@ export default function DoAssignmentPage() {
     }
 
     fetchAssignment()
-  }, [params?.id, router, API_URL])
+  }, [params?.id, router])
+
+  // 🔹 Đếm số câu đã trả lời thật sự
+  const answeredCount = useMemo(() => {
+    return Object.values(userAnswers).filter(arr => arr.length > 0).length
+  }, [userAnswers])
 
   if (loading) return <div className="text-center mt-20">Đang tải bài tập...</div>
   if (error) return <div className="text-center mt-20 text-red-500">{error}</div>
   if (!assignment) return null
 
   const questions = assignment.questions || []
+  const question = questions[currentQuestion]
+  const isMultiple = question.question_type === "multiple"
+  const userAnswer = userAnswers[question.id] || []
 
+  // 🔹 Chọn đáp án
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
     if (isMultiple) {
       const current = userAnswers[questionId] || []
       const newAnswers = current.includes(answerId)
-        ? current.filter((id) => id !== answerId)
+        ? current.filter(id => id !== answerId)
         : [...current, answerId]
-      setUserAnswers({ ...userAnswers, [questionId]: newAnswers })
+
+      setUserAnswers(prev => ({
+        ...prev,
+        [questionId]: newAnswers
+      }))
     } else {
-      setUserAnswers({ ...userAnswers, [questionId]: [answerId] })
+      setUserAnswers(prev => ({
+        ...prev,
+        [questionId]: [answerId]
+      }))
     }
   }
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
+      setCurrentQuestion(q => q + 1)
     }
   }
 
   const handlePrevious = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1)
+      setCurrentQuestion(q => q - 1)
     }
   }
 
   // 🔹 Submit bài
   const handleSubmit = async () => {
     try {
+      const token = getToken()
+
+      if (!token) {
+        alert("Vui lòng đăng nhập để nộp bài")
+        router.push("/login")
+        return
+      }
+
+      // 🔹 Đúng format backend hay dùng
       const answersPayload = questions.map(q => ({
         question_id: q.id,
-        answer_id: userAnswers[q.id] || []
+        answer_ids: userAnswers[q.id] || []
       }))
+
+      console.log("SUBMIT PAYLOAD:", {
+        assignment_id: assignment.id,
+        answers: answersPayload
+      })
 
       const res = await fetch(
         `${API_URL}/api/assignments/submit`,
         {
           method: "POST",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
             assignment_id: assignment.id,
-            answers: answersPayload,
-          }),
+            answers: answersPayload
+          })
         }
       )
 
+      const data = await res.json()
+
       if (!res.ok) {
-        throw new Error("Nộp bài thất bại")
+        throw new Error(data.error || "Nộp bài thất bại")
       }
 
-      const data = await res.json()
-      setScore(data.score)
+      setScore(Number(data.score || 0))
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
-      alert("Có lỗi khi nộp bài")
+      alert(err.message || "Có lỗi khi nộp bài")
     }
   }
 
   // 🔹 Màn hình kết quả
   if (isSubmitted) {
-    const percentage = ((score / assignment.total_score) * 100).toFixed(0)
+    const percentage = assignment.total_score
+      ? ((score / assignment.total_score) * 100).toFixed(0)
+      : 0
 
     return (
       <div className="min-h-screen">
@@ -145,7 +205,7 @@ export default function DoAssignmentPage() {
           <Card className="mx-auto max-w-2xl">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-                {Number.parseInt(percentage) >= 70 ? (
+                {Number(percentage) >= 70 ? (
                   <CheckCircle2 className="h-12 w-12 text-primary" />
                 ) : (
                   <XCircle className="h-12 w-12 text-destructive" />
@@ -190,10 +250,6 @@ export default function DoAssignmentPage() {
     )
   }
 
-  const question = questions[currentQuestion]
-  const isMultiple = question.question_type === "multiple"
-  const userAnswer = userAnswers[question.id] || []
-
   return (
     <div className="min-h-screen">
       <Header />
@@ -208,14 +264,14 @@ export default function DoAssignmentPage() {
                 <div
                   className="h-full bg-primary transition-all"
                   style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100}%`,
+                    width: `${((currentQuestion + 1) / questions.length) * 100}%`
                   }}
                 />
               </div>
             </div>
 
             <div className="text-sm font-medium text-primary">
-              {Object.keys(userAnswers).length} / {questions.length} đã trả lời
+              {answeredCount} / {questions.length} đã trả lời
             </div>
           </div>
 
@@ -266,7 +322,7 @@ export default function DoAssignmentPage() {
                   onValueChange={val =>
                     handleAnswerChange(
                       question.id,
-                      Number.parseInt(val),
+                      Number(val),
                       false
                     )
                   }
@@ -306,9 +362,7 @@ export default function DoAssignmentPage() {
               {currentQuestion === questions.length - 1 ? (
                 <Button
                   onClick={handleSubmit}
-                  disabled={
-                    Object.keys(userAnswers).length !== questions.length
-                  }
+                  disabled={answeredCount !== questions.length}
                 >
                   Nộp bài
                 </Button>
