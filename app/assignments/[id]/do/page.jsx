@@ -47,6 +47,7 @@ export default function DoAssignmentPage() {
           ...data.assignment,
           questions: data.assignment.questions.map(q => ({
             ...q,
+            score: Number(q.score || 0), // 🔥 GIỮ ĐIỂM Ở TOP LEVEL
             question_text: q.content,
             question_type: q.type,
             options: q.answers.map(a => ({
@@ -54,6 +55,7 @@ export default function DoAssignmentPage() {
               option_text: a.content
             }))
           }))
+
         }
 
         // 🔹 Fallback total_score nếu backend không trả
