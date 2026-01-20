@@ -130,7 +130,7 @@ export default function DoAssignmentPage() {
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
-      alert("Có lỗi khi nộp bài")
+
     }
   }
 
