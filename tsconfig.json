@@ -33,7 +33,25 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "components/ui/calendar.jsx",
+    "components/ui/button.jsx",
+    "components/ui/button-group.jsx",
+    "components/ui/breadcrumb.jsx",
+    "components/ui/badge.jsx",
+    "components/ui/avatar.jsx",
+    "components/ui/aspect-ratio.jsx",
+    "components/ui/alert.jsx",
+    "components/ui/alert-dialog.jsx",
+    "components/ui/accordion.jsx",
+    "components/ui/sidebar.jsx",
+    "components/ui/command.jsx",
+    "components/ui/collapsible.jsx",
+    "components/ui/checkbox.jsx",
+    "components/ui/chart.jsx",
+    "components/ui/carousel.jsx",
+    "components/ui/card.jsx",
+    "lib/utils.js"
   ],
   "exclude": [
     "node_modules"

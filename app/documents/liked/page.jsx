@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
-import { API_BASE_URL } from "@/config"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function DocumentsPage() {
   const router = useRouter()
@@ -29,24 +30,42 @@ export default function DocumentsPage() {
 
   const init = async () => {
     try {
+      const token = localStorage.getItem("token")
+      if (!token) {
+        router.push("/login")
+        return
+      }
+
       // 1️⃣ check login
-      const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, { credentials: "include" })
+      const meRes = await fetch(`${API_URL}/api/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
       if (!meRes.ok) {
         router.push("/login")
         return
       }
 
       // 2️⃣ fetch liked documents
-      await fetchLikedDocuments()
+      await fetchLikedDocuments(token)
     } catch (err) {
       console.error(err)
       router.push("/login")
     }
   }
 
-  const fetchLikedDocuments = async () => {
+  const fetchLikedDocuments = async (token) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents/liked`, { credentials: "include" })
+      const res = await fetch(
+        `${API_URL}/api/documents/liked`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       if (!res.ok) throw new Error("Fetch liked documents failed")
 
@@ -55,7 +74,9 @@ export default function DocumentsPage() {
       setDocuments(data.documents || [])
 
       // ❤️ tất cả doc ở đây đều đã liked
-      setLikedDocs(new Set((data.documents || []).map((d) => d.id)))
+      setLikedDocs(
+        new Set((data.documents || []).map((d) => d.id))
+      )
     } catch (err) {
       console.error(err)
     } finally {
@@ -64,17 +85,24 @@ export default function DocumentsPage() {
   }
 
   const handleLike = async (docId) => {
-
+    // ❗ trang này chỉ UNLIKE
     try {
-      await fetch(`${API_BASE_URL}/api/documents/like`, {
+      const token = localStorage.getItem("token")
+
+      await fetch(`${API_URL}/api/documents/like`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ document_id: docId }),
       })
 
       // remove khỏi UI
-      setDocuments((prev) => prev.filter((d) => d.id !== docId))
+      setDocuments((prev) =>
+        prev.filter((d) => d.id !== docId)
+      )
+
       setLikedDocs((prev) => {
         const next = new Set(prev)
         next.delete(docId)
@@ -96,7 +124,9 @@ export default function DocumentsPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/20">
                 <FileText className="h-6 w-6" />
               </div>
-              <h1 className="text-4xl font-bold">Tài liệu đã thích</h1>
+              <h1 className="text-4xl font-bold">
+                Tài liệu đã thích
+              </h1>
             </div>
 
             {!isLoading && (
@@ -121,7 +151,7 @@ export default function DocumentsPage() {
                 >
                   <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                     <img
-                      src={`${API_BASE_URL}${doc.thumbnail}`}
+                      src={`${API_URL}${doc.thumbnail}`}
                       alt={doc.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                     />
@@ -155,8 +185,14 @@ export default function DocumentsPage() {
                   </CardContent>
 
                   <CardFooter>
-                    <Button className="w-full" variant="secondary" asChild>
-                      <Link href={`/documents/${doc.id}`}>Xem</Link>
+                    <Button
+                      className="w-full"
+                      variant="secondary"
+                      asChild
+                    >
+                      <Link href={`/documents/${doc.id}`}>
+                        Xem
+                      </Link>
                     </Button>
                   </CardFooter>
                 </Card>

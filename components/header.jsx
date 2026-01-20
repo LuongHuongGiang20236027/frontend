@@ -14,44 +14,51 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LoginDialog } from "@/components/login-dialog"
 import { RegisterDialog } from "@/components/register-dialog"
-import { API_BASE_URL } from "@/config"
+import { getAvatarFallback, getAvatarColor } from "@/utils/avatar"
+import { useRouter } from "next/navigation"
 
+// 🔹 Header chung cho toàn site
 export function Header() {
   const [loginOpen, setLoginOpen] = useState(false)
   const [registerOpen, setRegisterOpen] = useState(false)
   const [user, setUser] = useState(null)
+  const router = useRouter()
 
+  // lắng nghe sự kiện đăng nhập / đăng xuất từ các component khác
   useEffect(() => {
     const handleUserLogin = (e) => setUser(e.detail)
     const handleUserLogout = () => setUser(null)
-
+    // đăng ký sự kiện
     window.addEventListener("user-login", handleUserLogin)
     window.addEventListener("user-logout", handleUserLogout)
-
+    // khởi tạo user từ localStorage (nếu có)
     const tokenUser = localStorage.getItem("user")
     if (tokenUser) setUser(JSON.parse(tokenUser))
 
     return () => {
+      // hủy đăng ký sự kiện
       window.removeEventListener("user-login", handleUserLogin)
       window.removeEventListener("user-logout", handleUserLogout)
     }
   }, [])
 
+  // xử lý đăng xuất
   const logout = () => {
     setUser(null)
     localStorage.removeItem("token")
     localStorage.removeItem("user")
-    fetch(`${API_BASE_URL}/api/auth/logout`, { method: "POST", credentials: "include" })
-      .catch(console.error)
 
     window.dispatchEvent(new Event("user-logout"))
+    router.push("/")
   }
 
+
+  // lấy chữ cái đầu tên user
   const getUserInitial = () => user?.name?.charAt(0).toUpperCase() || "U"
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
@@ -85,7 +92,7 @@ export function Header() {
                       <Link href="/assignments/my-assignments">Bài tập của tôi</Link>
                     </DropdownMenuItem>
                   )}
-                  {user?.role === "student" && (
+                  {user && (
                     <DropdownMenuItem asChild>
                       <Link href="/assignments/completed">Bài tập đã làm</Link>
                     </DropdownMenuItem>
@@ -129,9 +136,10 @@ export function Header() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
-                      <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        {getUserInitial()}
+                      <AvatarImage src={user?.avatar || ""} />
+                      <AvatarFallback
+                        className={`${getAvatarColor(user?.name)} text-white font-semibold`}>
+                        {getAvatarFallback(user?.name)}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -139,11 +147,13 @@ export function Header() {
                 <DropdownMenuContent className="w-56" align="end">
                   <div className="flex items-center gap-2 p-2">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user?.name || "User"} />
-                      <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        {getUserInitial()}
+                      <AvatarImage src={user?.avatar || ""} alt={user?.name || "User"} />
+                      <AvatarFallback
+                        className={`${getAvatarColor(user?.name)} font-semibold`}>
+                        {getAvatarFallback(user?.name)}
                       </AvatarFallback>
                     </Avatar>
+
                     <div className="flex flex-col">
                       <p className="text-sm font-medium">{user?.name || "Người dùng"}</p>
                       <p className="text-xs text-muted-foreground">{user?.email || ""}</p>

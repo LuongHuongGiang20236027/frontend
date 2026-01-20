@@ -8,9 +8,19 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getAvatarFallback, getAvatarColor } from "@/utils/avatar"
+import { SelectInput } from "@/components/ui/select-input"
 
-import { API_BASE_URL } from "@/config"
+// 🔹 API Base URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Helper lấy JWT token
+const getToken = () => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("token")
+}
+
+// 🔹 Trang hồ sơ người dùng
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
@@ -31,17 +41,25 @@ export default function ProfilePage() {
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
-
-  // 🔹 Load user từ localStorage
+  // 🔹 Load user bằng JWT
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
-          credentials: "include",
+        const token = getToken()
+
+        if (!token) {
+          router.push("/login")
+          return
+        }
+
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         })
 
-
         if (!res.ok) {
+          localStorage.removeItem("token")
           router.push("/login")
           return
         }
@@ -65,12 +83,10 @@ export default function ProfilePage() {
     fetchUser()
   }, [router])
 
+  // nếu chưa load xong user
+  if (!user) return null
 
-
-
-
-  if (!user) return null // hoặc loading spinner
-
+  // 🔹 xử lý thay đổi avatar
   const handleChangeAvatar = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -78,7 +94,14 @@ export default function ProfilePage() {
     setAvatarPreview(URL.createObjectURL(file))
   }
 
+  // 🔹 xử lý lưu thông tin cá nhân
   const handleSaveProfile = async () => {
+    const token = getToken()
+    if (!token) {
+      router.push("/login")
+      return
+    }
+
     const formData = new FormData()
     formData.append("name", name)
     formData.append("gender", gender)
@@ -86,12 +109,13 @@ export default function ProfilePage() {
     if (avatarFile) formData.append("avatar", avatarFile)
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/user/profile`, {
+      const res = await fetch(`${API_URL}/api/user/profile`, {
         method: "PUT",
-        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
         body: formData,
       })
-
 
       if (!res.ok) {
         alert("❌ Cập nhật thất bại!")
@@ -106,6 +130,7 @@ export default function ProfilePage() {
 
       localStorage.setItem("user", JSON.stringify(data.user))
 
+      // 🔹 dispatch event để Header update
       window.dispatchEvent(
         new CustomEvent("user-login", { detail: data.user })
       )
@@ -118,19 +143,25 @@ export default function ProfilePage() {
     }
   }
 
-
+  // 🔹 xử lý đổi mật khẩu
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
       alert("❌ Mật khẩu không khớp")
       return
     }
 
+    const token = getToken()
+    if (!token) {
+      router.push("/login")
+      return
+    }
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/user/password`, {
+      const res = await fetch(`${API_URL}/api/user/password`, {
         method: "PUT",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           currentPassword,
@@ -138,13 +169,12 @@ export default function ProfilePage() {
         }),
       })
 
-
       if (!res.ok) {
         alert("❌ Mật khẩu hiện tại sai!")
         return
       }
 
-      alert("🔐 Đổi mật khẩu thành công!")
+      alert("✅ Đổi mật khẩu thành công!")
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
@@ -172,7 +202,10 @@ export default function ProfilePage() {
               <div className="flex items-center gap-6">
                 <Avatar className="h-20 w-20">
                   <AvatarImage src={avatarPreview || ""} />
-                  <AvatarFallback>{user?.name?.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+                  <AvatarFallback
+                    className={`${getAvatarColor(user?.name)} text-white text-2xl font-bold`}>
+                    {getAvatarFallback(user?.name)}
+                  </AvatarFallback>
                 </Avatar>
 
                 <div>
@@ -196,7 +229,11 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label>Họ và tên</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} disabled={!isEditing} />
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={!isEditing}
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -206,21 +243,24 @@ export default function ProfilePage() {
 
                 <div className="space-y-2">
                   <Label>Ngày sinh</Label>
-                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} disabled={!isEditing} />
+                  <Input
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                    disabled={!isEditing}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Giới tính</Label>
-                  <select
+                  <SelectInput
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    disabled={!isEditing}
-                    className="w-full border rounded px-2 py-1"
-                  >
+                    disabled={!isEditing}>
                     <option value="male">Nam</option>
                     <option value="female">Nữ</option>
                     <option value="other">Khác</option>
-                  </select>
+                  </SelectInput>
                 </div>
               </div>
 
@@ -230,7 +270,9 @@ export default function ProfilePage() {
                 ) : (
                   <>
                     <Button onClick={handleSaveProfile}>Lưu thay đổi</Button>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>Hủy</Button>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Hủy
+                    </Button>
                   </>
                 )}
               </div>
@@ -247,15 +289,12 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="space-y-2 relative">
                 <Label>Mật khẩu hiện tại</Label>
-
                 <Input
                   type={showCurrentPassword ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="pr-10"
-                  autoComplete="current-password"
                 />
-
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -265,18 +304,14 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-
               <div className="space-y-2 relative">
                 <Label>Mật khẩu mới</Label>
-
                 <Input
                   type={showNewPassword ? "text" : "password"}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   className="pr-10"
-                  autoComplete="new-password"
                 />
-
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -288,15 +323,12 @@ export default function ProfilePage() {
 
               <div className="space-y-2 relative">
                 <Label>Xác nhận mật khẩu mới</Label>
-
                 <Input
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="pr-10"
-                  autoComplete="new-password"
                 />
-
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
@@ -306,7 +338,6 @@ export default function ProfilePage() {
                 </button>
               </div>
 
-
               <Button onClick={handleChangePassword}>Đổi mật khẩu</Button>
             </CardContent>
           </Card>
@@ -315,6 +346,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-
-
-

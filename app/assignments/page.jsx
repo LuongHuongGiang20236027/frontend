@@ -14,8 +14,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
 import { useRouter } from "next/navigation"
-import { API_BASE_URL } from "@/config"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState([])
@@ -28,8 +28,7 @@ export default function AssignmentsPage() {
 
   const fetchAssignments = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/assignments`)
-
+      const res = await fetch(`${API_URL}/api/assignments`)
       if (!res.ok) throw new Error("Fetch assignments failed")
 
       const data = await res.json()
@@ -41,12 +40,13 @@ export default function AssignmentsPage() {
     }
   }
 
-  // ✅ CHECK LOGIN KHI LÀM BÀI
+  // ✅ CHECK LOGIN = JWT
   const handleDoAssignment = (assignmentId) => {
-    const user = localStorage.getItem("user")
+    const token = localStorage.getItem("token")
 
-    if (!user) {
+    if (!token) {
       alert("Vui lòng đăng nhập để làm bài tập")
+      router.push("/login")
       return
     }
 
@@ -85,7 +85,11 @@ export default function AssignmentsPage() {
                 >
                   <div className="relative aspect-video overflow-hidden bg-muted">
                     <img
-                      src={`${API_BASE_URL}${assignment.thumbnail}`}
+                      src={
+                        assignment.thumbnail
+                          ? `${API_URL}${assignment.thumbnail}`
+                          : "/placeholder.svg"
+                      }
                       alt={assignment.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -127,10 +131,11 @@ export default function AssignmentsPage() {
                       </Link>
                     </Button>
 
-                    {/* ✅ LÀM BÀI: CHECK LOGIN */}
                     <Button
                       className="flex-1"
-                      onClick={() => handleDoAssignment(assignment.id)}
+                      onClick={() =>
+                        handleDoAssignment(assignment.id)
+                      }
                     >
                       Làm bài
                     </Button>

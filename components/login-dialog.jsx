@@ -5,7 +5,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { API_BASE_URL } from "@/config"
 
 export function LoginDialog({ open, onOpenChange }) {
   const [email, setEmail] = useState("")
@@ -17,21 +16,22 @@ export function LoginDialog({ open, onOpenChange }) {
   const [resetSuccess, setResetSuccess] = useState(false)
 
   // 🔹 Đăng nhập
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+      const res = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-        credentials: "include",
       })
 
-
       const data = await res.json()
+
 
       if (!res.ok) {
         setError(data.error || "Email hoặc mật khẩu không đúng!")
@@ -59,7 +59,7 @@ export function LoginDialog({ open, onOpenChange }) {
     setLoading(false)
   }
 
-  // 🔹 Quên mật khẩu (fake gửi email)
+  // 🔹 Quên mật khẩu 
   const handleForgotPassword = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -72,8 +72,9 @@ export function LoginDialog({ open, onOpenChange }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // khởi tạo function mở LoginDialog
       window.openLoginDialog = () => onOpenChange(true)
-      // giữ nguyên function mở RegisterDialog nếu chưa có
+      // khởi tạo function mở RegisterDialog (dùng trong LoginDialog)
       window.openRegisterDialog = window.openRegisterDialog || (() => { })
     }
   }, [onOpenChange])
@@ -82,7 +83,7 @@ export function LoginDialog({ open, onOpenChange }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] space-y-4">
 
-        {/* =================== QUÊN MẬT KHẨU =================== */}
+
         {showForgot && !resetSuccess && (
           <>
             <DialogHeader>

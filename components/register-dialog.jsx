@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { API_BASE_URL } from "@/config"
 
+// 🔹 Dialog đăng ký
 export function RegisterDialog({ open, onOpenChange }) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -17,6 +17,9 @@ export function RegisterDialog({ open, onOpenChange }) {
   const [gender, setGender] = useState("")
   const [birthDate, setBirthDate] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // 🔹 Xử lý đăng ký
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -34,7 +37,7 @@ export function RegisterDialog({ open, onOpenChange }) {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -46,7 +49,6 @@ export function RegisterDialog({ open, onOpenChange }) {
           gender,
           birth_date: birthDate,
         }),
-        credentials: "include",
       })
 
 
@@ -57,11 +59,20 @@ export function RegisterDialog({ open, onOpenChange }) {
       } else {
         alert("Đăng ký thành công!")
 
-        // 🔹 dispatch event để Header update
+        // 🔹 Lưu vào localStorage
         if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("user-login", { detail: data.user }))
+          localStorage.setItem("user", JSON.stringify(data.user))
+          localStorage.setItem("token", data.token)
+          // 🔹 Gửi event để Header và ProfilePage cập nhật user
+          window.dispatchEvent(
+            new CustomEvent("user-login", {
+              detail: data.user,
+            })
+          )
+
         }
 
+        // Đóng dialog và reset form
         onOpenChange(false)
         setName("")
         setEmail("")
@@ -79,6 +90,7 @@ export function RegisterDialog({ open, onOpenChange }) {
     setLoading(false)
   }
 
+  // mở dialog từ bên ngoài
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.openRegisterDialog = () => onOpenChange(true)

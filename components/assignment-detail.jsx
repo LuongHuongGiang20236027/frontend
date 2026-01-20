@@ -1,6 +1,6 @@
 "use client"
-
-import { useState } from "react"
+// frontend/components/assignment-detail.jsx
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Clock, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
-
 
 export function AssignmentDetail({ assignment }) {
   const router = useRouter()
@@ -19,42 +18,70 @@ export function AssignmentDetail({ assignment }) {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
 
+  // ===== JWT AUTH =====
+  const [user, setUser] = useState(null)
+  const [token, setToken] = useState(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("user")
+      const storedToken = localStorage.getItem("token")
+
+      if (storedUser) setUser(JSON.parse(storedUser))
+      if (storedToken) setToken(storedToken)
+    }
+  }, [])
+
+  // =====================
+
+  // Nhấn bắt đầu làm bài
   const handleStart = () => {
-    if (!user) {
+    if (!user || !token) {
       alert("Vui lòng đăng nhập để làm bài tập")
       return
     }
     setIsStarted(true)
   }
 
+  // Xử lý thay đổi câu trả lời
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
     if (isMultiple) {
       const current = userAnswers[questionId] || []
-      const newAnswers = current.includes(answerId) ? current.filter((id) => id !== answerId) : [...current, answerId]
+      const newAnswers = current.includes(answerId)
+        ? current.filter((id) => id !== answerId)
+        : [...current, answerId]
+
       setUserAnswers({ ...userAnswers, [questionId]: newAnswers })
     } else {
       setUserAnswers({ ...userAnswers, [questionId]: [answerId] })
     }
   }
 
+  // Chuyển câu hỏi tiếp theo
   const handleNext = () => {
     if (currentQuestion < assignment.questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
     }
   }
 
+  // Chuyển câu hỏi trước đó
   const handlePrevious = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1)
     }
   }
 
-  const handleSubmit = () => {
+  // ===== NỘP BÀI + GỬI JWT =====
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+  const handleSubmit = async () => {
     let totalScore = 0
 
     assignment.questions.forEach((question) => {
       const userAnswer = userAnswers[question.id] || []
-      const correctAnswers = question.options.filter((a) => a.is_correct).map((a) => a.id)
+      const correctAnswers = question.options
+        .filter((a) => a.is_correct)
+        .map((a) => a.id)
 
       const isCorrect =
         userAnswer.length === correctAnswers.length &&
@@ -68,10 +95,31 @@ export function AssignmentDetail({ assignment }) {
 
     setScore(totalScore)
     setIsSubmitted(true)
+
+    try {
+      await fetch(`${API_URL}/api/assignments/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          answers: userAnswers,
+          score: totalScore,
+        }),
+      })
+    } catch (err) {
+      console.error("Lỗi gửi bài:", err)
+    }
   }
 
+  // ==========================
+
+  // Nếu đã nộp bài, hiển thị kết quả
   if (isSubmitted) {
     const percentage = ((score / assignment.total_score) * 100).toFixed(0)
+
     return (
       <div className="container mx-auto px-4 py-8">
         <Button variant="ghost" onClick={() => router.back()} className="mb-6">
@@ -91,6 +139,7 @@ export function AssignmentDetail({ assignment }) {
             <CardTitle className="text-3xl">Hoàn thành bài tập!</CardTitle>
             <CardDescription>Kết quả của bạn</CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-6">
             <div className="text-center">
               <div className="text-5xl font-bold text-primary">
@@ -103,7 +152,10 @@ export function AssignmentDetail({ assignment }) {
               <h3 className="font-semibold">Chi tiết kết quả:</h3>
               {assignment.questions.map((question, index) => {
                 const userAnswer = userAnswers[question.id] || []
-                const correctAnswers = question.options.filter((a) => a.is_correct).map((a) => a.id)
+                const correctAnswers = question.options
+                  .filter((a) => a.is_correct)
+                  .map((a) => a.id)
+
                 const isCorrect =
                   userAnswer.length === correctAnswers.length &&
                   userAnswer.every((id) => correctAnswers.includes(id)) &&
@@ -129,6 +181,7 @@ export function AssignmentDetail({ assignment }) {
               })}
             </div>
           </CardContent>
+
           <CardFooter className="flex gap-3">
             <Button variant="outline" onClick={() => router.push("/assignments")} className="flex-1">
               Danh sách bài tập
@@ -151,6 +204,7 @@ export function AssignmentDetail({ assignment }) {
     )
   }
 
+  // ========== MÀN HÌNH CHƯA BẮT ĐẦU ==========
   if (!isStarted) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -164,9 +218,9 @@ export function AssignmentDetail({ assignment }) {
             <img
               src={assignment.thumbnail || "/placeholder.svg?height=400&width=800"}
               alt={assignment.title}
-              className="h-[300px] w-full object-cover"
+              className="h-75 w-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
               <h1 className="text-4xl font-bold">{assignment.title}</h1>
               <p className="mt-2 text-lg text-white/90">{assignment.description}</p>
@@ -225,6 +279,7 @@ export function AssignmentDetail({ assignment }) {
     )
   }
 
+  // ========== MÀN HÌNH LÀM BÀI ==========
   const question = assignment.questions[currentQuestion]
   const isMultiple = question.question_type === "multiple"
   const userAnswer = userAnswers[question.id] || []

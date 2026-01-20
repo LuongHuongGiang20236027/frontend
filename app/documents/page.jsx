@@ -13,7 +13,15 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
-import { API_BASE_URL } from "@/config"
+
+// 🔹 API Base URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+// 🔹 Helper lấy JWT token
+const getToken = () => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem("token")
+}
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([])
@@ -21,12 +29,57 @@ export default function DocumentsPage() {
   const [likedDocs, setLikedDocs] = useState(new Set())
 
   useEffect(() => {
-    fetchDocuments()
+    init()
   }, [])
 
+  const init = async () => {
+    try {
+      const token = getToken()
+
+      // 🔹 Chưa login → chỉ load tài liệu
+      if (!token) {
+        fetchDocuments()
+        return
+      }
+
+      // 🔹 Có login → load tài liệu + like
+      await Promise.all([
+        fetchDocuments(),
+        fetchLikedDocuments(token),
+      ])
+    } catch (err) {
+      console.error(err)
+      fetchDocuments()
+    }
+  }
+
+  // 🔹 Lấy danh sách đã like
+  const fetchLikedDocuments = async (token) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/documents/liked`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!res.ok) return
+
+      const data = await res.json()
+
+      // ❤️ chỉ lấy ID
+      setLikedDocs(new Set((data.documents || []).map(d => d.id)))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 🔹 Lấy danh sách tài liệu
   const fetchDocuments = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents`)
+      const res = await fetch(`${API_URL}/api/documents`)
       const data = await res.json()
       setDocuments(data.documents || [])
     } catch (err) {
@@ -36,17 +89,18 @@ export default function DocumentsPage() {
     }
   }
 
+  // 🔹 Like / Unlike
   const handleLike = async (docId) => {
-    // ✅ CHECK LOGIN
-    const user = localStorage.getItem("user")
-    if (!user) {
+    const token = getToken()
+
+    if (!token) {
       alert("Vui lòng đăng nhập để thích tài liệu")
       return
     }
 
     const isLiked = likedDocs.has(docId)
 
-    // ✅ optimistic UI
+    // ✅ Optimistic UI
     setLikedDocs((prev) => {
       const next = new Set(prev)
       isLiked ? next.delete(docId) : next.add(docId)
@@ -59,19 +113,19 @@ export default function DocumentsPage() {
           ? {
             ...doc,
             like_count: isLiked
-              ? doc.like_count - 1
-              : doc.like_count + 1,
+              ? Number(doc.like_count) - 1
+              : Number(doc.like_count) + 1,
           }
           : doc
       )
     )
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents/like`, {
+      const res = await fetch(`${API_URL}/api/documents/like`, {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           document_id: docId,
@@ -84,7 +138,7 @@ export default function DocumentsPage() {
     } catch (err) {
       console.error("Like failed", err)
 
-      // ❌ rollback UI nếu backend lỗi
+      // 🔁 Rollback UI
       setLikedDocs((prev) => {
         const next = new Set(prev)
         isLiked ? next.add(docId) : next.delete(docId)
@@ -97,16 +151,14 @@ export default function DocumentsPage() {
             ? {
               ...doc,
               like_count: isLiked
-                ? doc.like_count + 1
-                : doc.like_count - 1,
+                ? Number(doc.like_count) + 1
+                : Number(doc.like_count) - 1,
             }
             : doc
         )
       )
     }
   }
-
-
 
   return (
     <div className="min-h-screen">
@@ -142,9 +194,9 @@ export default function DocumentsPage() {
                     key={doc.id}
                     className="group overflow-hidden hover:shadow-lg transition-shadow"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                    <div className="relative aspect-4/3 overflow-hidden bg-muted">
                       <img
-                        src={`${API_BASE_URL}${doc.thumbnail}`}
+                        src={`${API_URL}${doc.thumbnail}`}
                         alt={doc.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                       />
@@ -156,8 +208,8 @@ export default function DocumentsPage() {
                       >
                         <Heart
                           className={`h-5 w-5 ${isLiked
-                            ? "fill-red-500 text-red-500"
-                            : "text-gray-500"
+                              ? "fill-red-500 text-red-500"
+                              : "text-gray-500"
                             }`}
                         />
                       </button>

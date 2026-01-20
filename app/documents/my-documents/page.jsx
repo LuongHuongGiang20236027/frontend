@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { FileText, Plus, Trash2, Edit, Heart } from "lucide-react"
+import { FileText, Plus, Trash2, Heart } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -14,28 +14,37 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
-import { API_BASE_URL } from "@/config"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function MyDocumentsPage() {
   const router = useRouter()
 
   const [documents, setDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
-
-  // ✅ thêm state này
   const [likedDocs, setLikedDocs] = useState(new Set())
 
   useEffect(() => {
     const init = async () => {
       try {
-        const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, { credentials: "include" })
+        const token = localStorage.getItem("token")
+        if (!token) {
+          router.push("/login")
+          return
+        }
+
+        const meRes = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
 
         if (!meRes.ok) {
           router.push("/login")
           return
         }
 
-        await fetchMyDocuments()
+        await fetchMyDocuments(token)
       } catch (err) {
         console.error(err)
         router.push("/login")
@@ -45,9 +54,16 @@ export default function MyDocumentsPage() {
     init()
   }, [router])
 
-  const fetchMyDocuments = async () => {
+  const fetchMyDocuments = async (token) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents/my-documents`, { credentials: "include" })
+      const res = await fetch(
+        `${API_URL}/api/documents/my-documents`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       if (!res.ok) throw new Error("Failed to fetch documents")
 
@@ -64,10 +80,17 @@ export default function MyDocumentsPage() {
     if (!confirm("Bạn có chắc muốn xóa tài liệu này?")) return
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents/${docId}`, {
-        method: "DELETE",
-        credentials: "include",
-      })
+      const token = localStorage.getItem("token")
+
+      const res = await fetch(
+        `${API_URL}/api/documents/${docId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
       if (!res.ok) throw new Error("Delete failed")
 
@@ -79,9 +102,10 @@ export default function MyDocumentsPage() {
   }
 
   const handleLike = async (docId) => {
+    const token = localStorage.getItem("token")
     const isLiked = likedDocs.has(docId)
 
-    // optimistic UI
+    // Optimistic UI
     setLikedDocs((prev) => {
       const next = new Set(prev)
       isLiked ? next.delete(docId) : next.add(docId)
@@ -102,10 +126,12 @@ export default function MyDocumentsPage() {
     )
 
     try {
-      await fetch(`${API_BASE_URL}/api/documents/like`, {
+      await fetch(`${API_URL}/api/documents/like`, {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ document_id: docId }),
       })
     } catch (err) {
@@ -171,22 +197,21 @@ export default function MyDocumentsPage() {
                     key={doc.id}
                     className="group overflow-hidden hover:shadow-lg transition-shadow"
                   >
-                    <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                    <div className="relative aspect-4/3 overflow-hidden bg-muted">
                       <img
-                        src={`${API_BASE_URL}${doc.thumbnail}`}
+                        src={`${API_URL}${doc.thumbnail}`}
                         alt={doc.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                       />
 
-                      {/* ❤️ Like */}
                       <button
                         onClick={() => handleLike(doc.id)}
                         className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow hover:scale-110 transition"
                       >
                         <Heart
                           className={`h-5 w-5 ${isLiked
-                            ? "fill-red-500 text-red-500"
-                            : "text-gray-500"
+                              ? "fill-red-500 text-red-500"
+                              : "text-gray-500"
                             }`}
                         />
                       </button>
@@ -209,7 +234,9 @@ export default function MyDocumentsPage() {
 
                     <CardFooter className="gap-2">
                       <Button variant="secondary" className="flex-1" asChild>
-                        <Link href={`/documents/${doc.id}`}>Xem</Link>
+                        <Link href={`/documents/${doc.id}`}>
+                          Xem
+                        </Link>
                       </Button>
 
                       <Button

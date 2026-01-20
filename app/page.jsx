@@ -1,4 +1,5 @@
 "use client"
+
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
@@ -14,24 +15,64 @@ import {
 } from "@/components/ui/card"
 import { Header } from "@/components/header"
 
-// ✅ import API_BASE_URL từ config.js
-import { API_BASE_URL } from "../config"
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Trang chủ
 export default function HomePage() {
   const router = useRouter()
   const [assignments, setAssignments] = useState([])
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
   const [likedDocs, setLikedDocs] = useState(new Set())
+
   useEffect(() => {
-    Promise.all([fetchAssignments(), fetchDocuments()]).finally(() =>
-      setLoading(false)
-    )
+    init()
   }, [])
 
+  const init = async () => {
+    try {
+      const token = localStorage.getItem("token")
+
+      if (!token) {
+        await Promise.all([fetchAssignments(), fetchDocuments()])
+        return
+      }
+
+      await Promise.all([
+        fetchAssignments(),
+        fetchDocuments(),
+        fetchLikedDocuments(token),
+      ])
+    } catch (err) {
+      console.error(err)
+      await Promise.all([fetchAssignments(), fetchDocuments()])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ❤️ fetch liked documents (JWT)
+  const fetchLikedDocuments = async (token) => {
+    try {
+      const res = await fetch(`${API_URL}/api/documents/liked`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) return
+
+      const data = await res.json()
+      setLikedDocs(new Set((data.documents || []).map((d) => d.id)))
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 📘 fetch assignments
   const fetchAssignments = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/assignments`)
+      const res = await fetch(`${API_URL}/api/assignments`)
       const data = await res.json()
       setAssignments((data.assignments || []).slice(0, 4))
     } catch (err) {
@@ -39,9 +80,10 @@ export default function HomePage() {
     }
   }
 
+  // 📄 fetch documents
   const fetchDocuments = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/documents`)
+      const res = await fetch(`${API_URL}/api/documents`)
       const data = await res.json()
       setDocuments((data.documents || []).slice(0, 4))
     } catch (err) {
@@ -49,18 +91,19 @@ export default function HomePage() {
     }
   }
 
-
+  // ❤️ LIKE DOCUMENT (JWT)
   const handleLike = async (docId) => {
-    // ✅ CHECK LOGIN
-    const user = localStorage.getItem("user")
-    if (!user) {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
       alert("Vui lòng đăng nhập để thích tài liệu")
+      router.push("/login")
       return
     }
 
     const isLiked = likedDocs.has(docId)
 
-    // ✅ optimistic UI
+    // optimistic UI
     setLikedDocs((prev) => {
       const next = new Set(prev)
       isLiked ? next.delete(docId) : next.add(docId)
@@ -73,32 +116,28 @@ export default function HomePage() {
           ? {
             ...doc,
             like_count: isLiked
-              ? doc.like_count - 1
-              : doc.like_count + 1,
+              ? Number(doc.like_count) - 1
+              : Number(doc.like_count) + 1,
           }
           : doc
       )
     )
 
     try {
-      const res = await fetch("http://localhost:5000/api/documents/like", {
+      const res = await fetch(`${API_URL}/api/documents/like`, {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          document_id: docId,
-        }),
+        body: JSON.stringify({ document_id: docId }),
       })
 
-      if (!res.ok) {
-        throw new Error("Like failed")
-      }
+      if (!res.ok) throw new Error("Like failed")
     } catch (err) {
-      console.error("Like failed", err)
+      console.error(err)
 
-      // ❌ rollback UI nếu backend lỗi
+      // rollback
       setLikedDocs((prev) => {
         const next = new Set(prev)
         isLiked ? next.add(docId) : next.delete(docId)
@@ -111,8 +150,8 @@ export default function HomePage() {
             ? {
               ...doc,
               like_count: isLiked
-                ? doc.like_count + 1
-                : doc.like_count - 1,
+                ? Number(doc.like_count) + 1
+                : Number(doc.like_count) - 1,
             }
             : doc
         )
@@ -120,20 +159,18 @@ export default function HomePage() {
     }
   }
 
-
-  // ✅ CHECK LOGIN KHI LÀM BÀI
+  // ✅ LÀM BÀI = CHECK JWT
   const handleDoAssignment = (assignmentId) => {
-    const user = localStorage.getItem("user")
+    const token = localStorage.getItem("token")
 
-    if (!user) {
+    if (!token) {
       alert("Vui lòng đăng nhập để làm bài tập")
+      router.push("/login")
       return
     }
 
     router.push(`/assignments/${assignmentId}/do`)
   }
-
-
 
   return (
     <div className="min-h-screen">
@@ -141,22 +178,26 @@ export default function HomePage() {
 
       <main>
         {/* Hero */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10 py-20">
+        <section className="relative overflow-hidden bg-linear-to-br from-primary/10 via-secondary/10 to-accent/10 py-20">
           <div className="container mx-auto px-4 text-center max-w-3xl">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-card px-4 py-2 shadow-sm">
               <Sparkles className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Nền tảng học tập hiện đại</span>
+              <span className="text-sm font-medium">
+                Nền tảng học tập hiện đại
+              </span>
             </div>
 
             <h1 className="mb-6 text-5xl font-bold">
               Học tập thông minh với{" "}
-              <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
                 Smart Edu
               </span>
             </h1>
 
             <p className="text-xl text-muted-foreground">
-              Khám phá hàng trăm bài tập và tài liệu chất lượng cao. Nâng cao kỹ năng của bạn với các bài tập tương tác và tài nguyên học tập đa dạng.
+              Khám phá hàng trăm bài tập và tài liệu chất lượng cao. Nâng cao kỹ
+              năng của bạn với các bài tập tương tác và tài nguyên học tập đa
+              dạng.
             </p>
           </div>
         </section>
@@ -190,7 +231,11 @@ export default function HomePage() {
                   >
                     <div className="relative aspect-video overflow-hidden bg-muted">
                       <img
-                        src={`${API_BASE_URL}${assignment.thumbnail}`}
+                        src={
+                          assignment.thumbnail
+                            ? `${API_URL}${assignment.thumbnail}`
+                            : "/placeholder.svg"
+                        }
                         alt={assignment.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -227,15 +272,18 @@ export default function HomePage() {
                         variant="outline"
                         asChild
                       >
-                        <Link href={`/assignments/${assignment.id}/view`}>
+                        <Link
+                          href={`/assignments/${assignment.id}/view`}
+                        >
                           Xem đề
                         </Link>
                       </Button>
 
-                      {/* ✅ LÀM BÀI: CHECK LOGIN */}
                       <Button
                         className="flex-1"
-                        onClick={() => handleDoAssignment(assignment.id)}
+                        onClick={() =>
+                          handleDoAssignment(assignment.id)
+                        }
                       >
                         Làm bài
                       </Button>
@@ -261,16 +309,16 @@ export default function HomePage() {
             ) : (
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {documents.map((doc) => {
-                  const isLiked = likedDocs.has(doc.id) // ✅ FIX Ở ĐÂY
+                  const isLiked = likedDocs.has(doc.id)
 
                   return (
                     <Card
                       key={doc.id}
                       className="group overflow-hidden hover:shadow-lg transition-shadow"
                     >
-                      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                      <div className="relative aspect-4/3 overflow-hidden bg-muted">
                         <img
-                          src={`http://localhost:5000${doc.thumbnail}`}
+                          src={`${API_URL}${doc.thumbnail}`}
                           alt={doc.title}
                           className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                         />
@@ -304,8 +352,14 @@ export default function HomePage() {
                       </CardContent>
 
                       <CardFooter>
-                        <Button variant="secondary" className="w-full" asChild>
-                          <Link href={`/documents/${doc.id}`}>Xem</Link>
+                        <Button
+                          variant="secondary"
+                          className="w-full"
+                          asChild
+                        >
+                          <Link href={`/documents/${doc.id}`}>
+                            Xem
+                          </Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -319,6 +373,7 @@ export default function HomePage() {
     </div>
   )
 }
+
 /* ====== Helper components ====== */
 
 function Feature({ icon, title }) {

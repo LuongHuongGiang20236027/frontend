@@ -2,23 +2,34 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Upload, ArrowLeft, X } from "lucide-react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Upload } from "lucide-react"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Header } from "@/components/header"
-import { API_BASE_URL } from "@/config"
+
+// 🔹 API Base URL
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function UploadDocumentPage() {
   const router = useRouter()
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     file: null,
     thumbnail: null,
   })
+
   const [uploading, setUploading] = useState(false)
 
   const handleFileChange = (e, field) => {
@@ -30,6 +41,13 @@ export default function UploadDocumentPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const token = localStorage.getItem("token")
+    if (!token) {
+      alert("Bạn chưa đăng nhập")
+      router.push("/login")
+      return
+    }
 
     if (!formData.title || !formData.file) {
       alert("Vui lòng nhập tiêu đề và chọn file PDF")
@@ -48,23 +66,23 @@ export default function UploadDocumentPage() {
         fd.append("thumbnail", formData.thumbnail)
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/documents`, {
+      const res = await fetch(`${API_URL}/api/documents`, {
         method: "POST",
-        credentials: "include",
-        body: fd,
+        headers: {
+          Authorization: `Bearer ${token}`, // ✅ JWT
+        },
+        body: fd, // ❗ Không set Content-Type khi dùng FormData
       })
-
 
       const data = await res.json()
 
-      if (!res.ok || !data.document) {
+      if (!res.ok) {
         alert(data.error || "Upload thất bại")
         return
       }
 
       alert("✅ Tải lên tài liệu thành công!")
       router.push("/documents/my-documents")
-
     } catch (err) {
       console.error(err)
       alert("❌ Lỗi kết nối server")
@@ -76,9 +94,9 @@ export default function UploadDocumentPage() {
   return (
     <div className="min-h-screen">
       <Header />
+
       <main>
         <div className="container mx-auto px-4 py-8">
-
           <div className="mx-auto max-w-3xl">
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-2">
@@ -96,7 +114,9 @@ export default function UploadDocumentPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Thông tin tài liệu</CardTitle>
-                  <CardDescription>Điền đầy đủ để tài liệu dễ tìm kiếm</CardDescription>
+                  <CardDescription>
+                    Điền đầy đủ để tài liệu dễ tìm kiếm
+                  </CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-6">
@@ -118,7 +138,10 @@ export default function UploadDocumentPage() {
                     <Textarea
                       value={formData.description}
                       onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
                       }
                       rows={4}
                     />
@@ -146,7 +169,9 @@ export default function UploadDocumentPage() {
                     <Input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => handleFileChange(e, "thumbnail")}
+                      onChange={(e) =>
+                        handleFileChange(e, "thumbnail")
+                      }
                     />
                     {formData.thumbnail && (
                       <p className="text-sm text-muted-foreground">
@@ -165,7 +190,11 @@ export default function UploadDocumentPage() {
                   >
                     Hủy
                   </Button>
-                  <Button type="submit" disabled={uploading} className="flex-1">
+                  <Button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1"
+                  >
                     {uploading ? "Đang tải lên..." : "Tải lên"}
                   </Button>
                 </CardFooter>
