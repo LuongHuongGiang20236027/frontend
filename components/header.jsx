@@ -67,9 +67,9 @@ export function Header() {
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-card/95 backdrop-blur supports-backdrop-filter:bg-card/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
 
-          {/* LEFT: Mobile menu button + Logo */}
+          {/* LEFT: Mobile menu + Logo */}
           <div className="flex items-center gap-2">
-            {/* MOBILE MENU BUTTON (LEFT) */}
+            {/* ☰ MOBILE */}
             <Button
               variant="ghost"
               size="icon"
@@ -160,11 +160,14 @@ export function Header() {
             </nav>
           </div>
 
-          {/* RIGHT: Avatar / Auth (ALWAYS TOP-RIGHT) */}
+          {/* RIGHT: Avatar / Auth */}
           <div className="flex items-center gap-2">
             {user ? (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                <DropdownMenuTrigger
+                  asChild
+                  onClick={() => setMobileOpen(false)} // đóng ☰ khi bấm avatar
+                >
                   <Button
                     variant="ghost"
                     className="relative h-10 w-10 rounded-full"
@@ -233,11 +236,19 @@ export function Header() {
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
-                  onClick={() => setLoginOpen(true)}
+                  onClick={() => {
+                    setLoginOpen(true)
+                    setMobileOpen(false)
+                  }}
                 >
                   Đăng nhập
                 </Button>
-                <Button onClick={() => setRegisterOpen(true)}>
+                <Button
+                  onClick={() => {
+                    setRegisterOpen(true)
+                    setMobileOpen(false)
+                  }}
+                >
                   Đăng ký
                 </Button>
               </div>
@@ -245,7 +256,7 @@ export function Header() {
           </div>
         </div>
 
-        {/* MOBILE MENU PANEL */}
+        {/* MOBILE MENU PANEL (NAV ONLY) */}
         {mobileOpen && (
           <div className="md:hidden border-t bg-card px-4 py-4 space-y-2">
             <Link
@@ -316,50 +327,6 @@ export function Header() {
                 >
                   Tài liệu đã thích
                 </Link>
-              )}
-            </div>
-
-            <div className="pt-3 border-t">
-              {user ? (
-                <>
-                  <Link
-                    href="/profile"
-                    onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 py-2"
-                  >
-                    <User className="h-4 w-4" />
-                    Hồ sơ
-                  </Link>
-                  <button
-                    onClick={logout}
-                    className="flex items-center gap-2 py-2 text-destructive"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Đăng xuất
-                  </button>
-                </>
-              ) : (
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    className="w-full"
-                    onClick={() => {
-                      setLoginOpen(true)
-                      setMobileOpen(false)
-                    }}
-                  >
-                    Đăng nhập
-                  </Button>
-                  <Button
-                    className="w-full"
-                    onClick={() => {
-                      setRegisterOpen(true)
-                      setMobileOpen(false)
-                    }}
-                  >
-                    Đăng ký
-                  </Button>
-                </div>
               )}
             </div>
           </div>
