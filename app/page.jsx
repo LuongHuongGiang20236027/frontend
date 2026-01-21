@@ -232,9 +232,7 @@ export default function HomePage() {
                     <div className="relative aspect-video overflow-hidden bg-muted">
                       <img
                         src={
-                          assignment.thumbnail
-                            ? `${API_URL}${assignment.thumbnail}`
-                            : "/placeholder.svg"
+                          assignment.thumbnail || "/placeholder.svg"
                         }
                         alt={assignment.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -318,7 +316,7 @@ export default function HomePage() {
                     >
                       <div className="relative aspect-4/3 overflow-hidden bg-muted">
                         <img
-                          src={`${API_URL}${doc.thumbnail}`}
+                          src={doc.thumbnail}
                           alt={doc.title}
                           className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                         />
