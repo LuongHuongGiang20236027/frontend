@@ -137,7 +137,7 @@ export function DocumentDetail({ document: doc }) {
         {/* Thumbnail */}
         <div className="relative mb-8 overflow-hidden rounded-2xl">
           <img
-            src={`${API_URL}${doc.thumbnail}`}
+            src={doc.thumbnail}
             alt={doc.title}
             className="h-full w-full object-cover"
           />

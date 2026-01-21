@@ -199,7 +199,7 @@ export default function MyDocumentsPage() {
                   >
                     <div className="relative aspect-4/3 overflow-hidden bg-muted">
                       <img
-                        src={`${API_URL}${doc.thumbnail}`}
+                        src={doc.thumbnail}
                         alt={doc.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                       />

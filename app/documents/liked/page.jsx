@@ -149,9 +149,9 @@ export default function DocumentsPage() {
                   key={doc.id}
                   className="group overflow-hidden hover:shadow-lg transition-shadow"
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                  <div className="relative aspect-4/3 overflow-hidden bg-muted">
                     <img
-                      src={`${API_URL}${doc.thumbnail}`}
+                      src={doc.thumbnail}
                       alt={doc.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform"
                     />
