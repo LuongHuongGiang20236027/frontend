@@ -110,20 +110,26 @@ export function DocumentDetail({ document: doc }) {
         }
       )
 
-      if (!res.ok) throw new Error("Download failed")
+      if (!res.ok) {
+        throw new Error("Download failed")
+      }
 
-      const data = await res.json()
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
 
-      window.open(data.downloadUrl, "_blank")
+      const a = window.document.createElement("a")
+      a.href = url
+      a.download = doc.title || "document"
+      window.document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
     } catch (err) {
-      alert("Không tải được file")
-      console.error(err)
+      console.error("Download failed", err)
+      alert("Tải tài liệu thất bại")
     }
   }
-
-
-
-
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -131,7 +137,7 @@ export function DocumentDetail({ document: doc }) {
         {/* Thumbnail */}
         <div className="relative mb-8 overflow-hidden rounded-2xl">
           <img
-            src={doc.thumbnail}
+            src={`${API_URL}${doc.thumbnail}`}
             alt={doc.title}
             className="h-full w-full object-cover"
           />
@@ -190,7 +196,7 @@ export function DocumentDetail({ document: doc }) {
               <CardContent>
                 <div className="aspect-4/3 rounded-lg border overflow-hidden">
                   <iframe
-                    src={`${doc.file_url}#toolbar=0`}
+                    src={`${API_URL}${doc.file_url}#toolbar=0`}
                     title="Preview PDF"
                     className="w-full h-full"
                   />
