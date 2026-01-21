@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Heart, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,48 +12,20 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// 🔹 Chi tiết tài liệu
 export function DocumentDetail({ document: doc }) {
-  const [liked, setLiked] = useState(false)
+  const [liked, setLiked] = useState(doc.isLiked || false)
   const [likesCount, setLikesCount] = useState(
     Number(doc.like_count) || 0
   )
 
-  useEffect(() => {
-    const initLikeStatus = async () => {
-      try {
-        const token = localStorage.getItem("token")
-        if (!token) return
+  // Fallback preview nếu backend chưa gắn
+  const previewUrl = useMemo(() => {
+    if (doc.preview_url) return doc.preview_url
+    if (!doc.file_url) return null
+    return doc.file_url.replace("/upload/", "/upload/fl_inline/")
+  }, [doc])
 
-        const res = await fetch(
-          `${API_URL}/api/documents/liked`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
-
-        if (!res.ok) return
-
-        const data = await res.json()
-
-        const likedIds = new Set(
-          (data.documents || []).map((d) => d.id)
-        )
-
-        if (likedIds.has(doc.id)) {
-          setLiked(true)
-        }
-      } catch (err) {
-        console.error("Fetch liked status failed", err)
-      }
-    }
-
-    initLikeStatus()
-  }, [doc.id])
-
-  // xử lý like / unlike
+  // Like / Unlike
   const handleLike = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
@@ -61,10 +33,10 @@ export function DocumentDetail({ document: doc }) {
       return
     }
 
-    const isLiked = liked
+    const prev = liked
 
-    setLiked(!isLiked)
-    setLikesCount((prev) => (isLiked ? prev - 1 : prev + 1))
+    setLiked(!prev)
+    setLikesCount((v) => (prev ? v - 1 : v + 1))
 
     try {
       const res = await fetch(
@@ -79,56 +51,27 @@ export function DocumentDetail({ document: doc }) {
         }
       )
 
-      if (!res.ok) {
-        throw new Error("Like failed")
-      }
-    } catch (err) {
-      console.error("Like failed", err)
-
-      setLiked(isLiked)
-      setLikesCount((prev) =>
-        isLiked ? prev + 1 : prev - 1
-      )
+      if (!res.ok) throw new Error()
+    } catch {
+      setLiked(prev)
+      setLikesCount((v) => (prev ? v + 1 : v - 1))
     }
   }
 
-  // xử lý tải tài liệu
-  const handleDownload = async () => {
+  // Download qua backend (bảo mật)
+  const handleDownload = () => {
     const token = localStorage.getItem("token")
     if (!token) {
       alert("Vui lòng đăng nhập để tải tài liệu")
       return
     }
 
-    try {
-      const res = await fetch(
-        `${API_URL}/api/documents/${doc.id}/download`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error("Download failed")
-      }
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-
-      const a = window.document.createElement("a")
-      a.href = url
-      a.download = doc.title || "document"
-      window.document.body.appendChild(a)
-      a.click()
-
-      a.remove()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error("Download failed", err)
-      alert("Tải tài liệu thất bại")
-    }
+    const link = window.document.createElement("a")
+    link.href = `${API_URL}/api/documents/download/${doc.id}`
+    link.target = "_blank"
+    window.document.body.appendChild(link)
+    link.click()
+    window.document.body.removeChild(link)
   }
 
   return (
@@ -137,7 +80,7 @@ export function DocumentDetail({ document: doc }) {
         {/* Thumbnail */}
         <div className="relative mb-8 overflow-hidden rounded-2xl">
           <img
-            src={doc.thumbnail}
+            src={doc.thumbnail || "/placeholder.png"}
             alt={doc.title}
             className="h-full w-full object-cover"
           />
@@ -171,8 +114,8 @@ export function DocumentDetail({ document: doc }) {
                   >
                     <Heart
                       className={`mr-2 h-4 w-4 ${liked
-                        ? "fill-red-500 text-red-500"
-                        : "text-gray-500"
+                          ? "fill-red-500 text-red-500"
+                          : "text-gray-500"
                         }`}
                     />
                     {liked ? "Đã thích" : "Thích"} ({likesCount})
@@ -195,11 +138,17 @@ export function DocumentDetail({ document: doc }) {
               </CardHeader>
               <CardContent>
                 <div className="aspect-4/3 rounded-lg border overflow-hidden">
-                  <iframe
-                    src={`${API_URL}${doc.file_url}#toolbar=0`}
-                    title="Preview PDF"
-                    className="w-full h-full"
-                  />
+                  {previewUrl ? (
+                    <iframe
+                      src={`${previewUrl}#toolbar=0`}
+                      title="Preview PDF"
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-muted-foreground">
+                      Không có file preview
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -217,7 +166,7 @@ export function DocumentDetail({ document: doc }) {
                     Người tạo
                   </p>
                   <p className="font-medium">
-                    {doc.author_name}
+                    {doc.author_name || "Không rõ"}
                   </p>
                 </div>
 
@@ -226,9 +175,7 @@ export function DocumentDetail({ document: doc }) {
                     Ngày tạo
                   </p>
                   <p className="font-medium">
-                    {new Date(
-                      doc.created_at
-                    ).toLocaleDateString("vi-VN")}
+                    {new Date(doc.created_at).toLocaleDateString("vi-VN")}
                   </p>
                 </div>
 
