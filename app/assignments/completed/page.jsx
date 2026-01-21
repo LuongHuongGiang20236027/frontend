@@ -119,7 +119,8 @@ export default function CompletedAssignmentsPage() {
                   >
                     <div className="relative aspect-video overflow-hidden bg-muted">
                       <img
-                        src={`${API_BASE}${s.thumbnail}`}
+                        src={s.thumbnail || "/placeholder.svg"}
+
                         alt={s.title}
                         className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />

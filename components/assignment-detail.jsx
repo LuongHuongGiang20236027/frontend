@@ -75,6 +75,13 @@ export function AssignmentDetail({ assignment }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
   const handleSubmit = async () => {
+    // 🔐 Check login trước
+    if (!token) {
+      alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại")
+      router.push("/login")
+      return
+    }
+
     let totalScore = 0
 
     assignment.questions.forEach((question) => {
@@ -97,7 +104,7 @@ export function AssignmentDetail({ assignment }) {
     setIsSubmitted(true)
 
     try {
-      await fetch(`${API_URL}/api/assignments/submit`, {
+      const res = await fetch(`${API_URL}/api/assignments/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -109,8 +116,22 @@ export function AssignmentDetail({ assignment }) {
           score: totalScore,
         }),
       })
+
+      // 🚨 JWT hết hạn
+      if (res.status === 401) {
+        alert("Phiên đăng nhập đã hết hạn")
+        router.push("/login")
+        return
+      }
+
+      // 🚨 Server lỗi
+      if (!res.ok) {
+        alert("Nộp bài thất bại, vui lòng thử lại")
+        return
+      }
     } catch (err) {
       console.error("Lỗi gửi bài:", err)
+      alert("Không thể kết nối tới server")
     }
   }
 

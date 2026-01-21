@@ -82,14 +82,13 @@ export default function ViewAssignmentPage() {
           <div className="relative mb-8 overflow-hidden rounded-2xl">
             <img
               src={
-                assignment.thumbnail
-                  ? `${API_URL}${assignment.thumbnail}`
-                  : "/placeholder.svg"
+                assignment.thumbnail || "/placeholder.svg"
+
               }
               alt={assignment.title}
               className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-8 text-white">
               <h1 className="text-4xl font-bold text-balance">{assignment.title}</h1>
               <p className="mt-2 text-lg text-white/90">{assignment.description}</p>
@@ -157,7 +156,7 @@ export default function ViewAssignmentPage() {
               {assignment.questions.map((q, idx) => (
                 <div key={q.id} className="rounded-lg border p-6 bg-muted/30">
                   <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold flex-shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold shrink-0">
                       {idx + 1}
                     </div>
                     <div className="flex-1">

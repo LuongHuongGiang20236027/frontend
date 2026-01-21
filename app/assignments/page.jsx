@@ -86,9 +86,8 @@ export default function AssignmentsPage() {
                   <div className="relative aspect-video overflow-hidden bg-muted">
                     <img
                       src={
-                        assignment.thumbnail
-                          ? `${API_URL}${assignment.thumbnail}`
-                          : "/placeholder.svg"
+                        assignment.thumbnail || "/placeholder.svg"
+
                       }
                       alt={assignment.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
