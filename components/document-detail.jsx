@@ -93,18 +93,34 @@ export function DocumentDetail({ document: doc }) {
   }
 
   // xử lý tải tài liệu
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
       alert("Vui lòng đăng nhập để tải tài liệu")
       return
     }
 
-    window.open(
-      `${API_URL}/api/documents/${doc.id}/download`,
-      "_blank"
-    )
+    try {
+      const res = await fetch(
+        `${API_URL}/api/documents/${doc.id}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!res.ok) throw new Error("Download failed")
+
+      const data = await res.json()
+
+      window.open(data.downloadUrl, "_blank")
+    } catch (err) {
+      alert("Không tải được file")
+      console.error(err)
+    }
   }
+
 
 
 
