@@ -98,7 +98,7 @@ export function LoginDialog({ open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] space-y-4">
+      <DialogContent className="sm:max-w-106.25 space-y-4">
 
 
         {showForgot && !resetSuccess && (
