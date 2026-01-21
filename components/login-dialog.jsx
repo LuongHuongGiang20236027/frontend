@@ -65,10 +65,27 @@ export function LoginDialog({ open, onOpenChange }) {
     setLoading(true)
     setError(null)
 
-    await new Promise((r) => setTimeout(r, 1500)) // giả lập gửi mail
-    setResetSuccess(true)
+    try {
+      const res = await fetch(`${API_URL}/api/user/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail })
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || "Không gửi được email")
+      }
+
+      setResetSuccess(true)
+    } catch (err) {
+      console.error(err)
+      setError("Không gửi được email khôi phục")
+    }
+
     setLoading(false)
   }
+
 
   useEffect(() => {
     if (typeof window !== "undefined") {
