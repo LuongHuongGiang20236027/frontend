@@ -93,28 +93,43 @@ export function DocumentDetail({ document: doc }) {
   }
 
   // xử lý tải tài liệu
-  // xử lý tải tài liệu
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
       alert("Vui lòng đăng nhập để tải tài liệu")
       return
     }
 
-    if (!doc.file_url) {
-      alert("Tài liệu chưa có file để tải")
-      return
+    try {
+      const res = await fetch(
+        `${API_URL}/api/documents/${doc.id}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!res.ok) {
+        throw new Error("Download failed")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+
+      const a = window.document.createElement("a")
+      a.href = url
+      a.download = doc.title || "document"
+      window.document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Download failed", err)
+      alert("Tải tài liệu thất bại")
     }
-
-    // Mở link trực tiếp để trình duyệt tự tải
-    const link = document.createElement("a")
-    link.href = doc.file_url
-    link.download = doc.title || "document"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
-
 
   return (
     <div className="container mx-auto px-4 py-8">
