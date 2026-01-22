@@ -93,19 +93,43 @@ export function DocumentDetail({ document: doc }) {
   }
 
   // xử lý tải tài liệu
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const token = localStorage.getItem("token")
     if (!token) {
       alert("Vui lòng đăng nhập để tải tài liệu")
       return
     }
 
-    window.open(
-      `${API_URL}/api/documents/${doc.id}/download`,
-      "_blank"
-    )
-  }
+    try {
+      const res = await fetch(
+        `${API_URL}/api/documents/${doc.id}/download`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
 
+      if (!res.ok) {
+        throw new Error("Download failed")
+      }
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+
+      const a = window.document.createElement("a")
+      a.href = url
+      a.download = doc.title || "document"
+      window.document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error("Download failed", err)
+      alert("Tải tài liệu thất bại")
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -172,7 +196,7 @@ export function DocumentDetail({ document: doc }) {
               <CardContent>
                 <div className="aspect-4/3 rounded-lg border overflow-hidden">
                   <iframe
-                    src={`${doc.file_url}#toolbar=0`}
+                    src={`${API_URL}${doc.file_url}#toolbar=0`}
                     title="Preview PDF"
                     className="w-full h-full"
                   />
