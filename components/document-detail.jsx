@@ -172,9 +172,9 @@ export function DocumentDetail({ document: doc }) {
               <CardContent>
                 <div className="aspect-4/3 rounded-lg border overflow-hidden">
                   <iframe
-                    src={doc.file_url}
-                    className="w-full h-full"
+                    src={`${doc.file_url}#toolbar=0`}
                     title="Preview PDF"
+                    className="w-full h-full"
                   />
                 </div>
               </CardContent>
