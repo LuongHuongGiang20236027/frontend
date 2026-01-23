@@ -391,7 +391,7 @@ export default function HomePage() {
                           Tạo bởi {doc.author_name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Ngày tạo: {formatDate(doc.created_at)}
+                          Ngày tạo: {formatDateTime(doc.created_at)}
                         </p>
                       </CardContent>
 
