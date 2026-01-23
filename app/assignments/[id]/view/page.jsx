@@ -35,7 +35,6 @@ export default function ViewAssignmentPage() {
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     if (!params?.id) return
@@ -75,71 +74,25 @@ export default function ViewAssignmentPage() {
     fetchAssignment()
   }, [params?.id, router])
 
-  const handleDoAssignment = async id => {
+  const handleDoAssignment = id => {
     const user = localStorage.getItem("user")
-
-    // Chưa đăng nhập
     if (!user) {
-      router.push("/login")
+      alert("Vui lòng đăng nhập để làm bài")
       return
     }
 
-    let token = null
-
-    try {
-      const parsedUser = JSON.parse(user)
-      token = parsedUser.accessToken || parsedUser.token
-    } catch {
-      localStorage.removeItem("user")
-      router.push("/login")
+    if (assignment.start_time && new Date() < new Date(assignment.start_time)) {
+      alert("Bài tập chưa mở")
       return
     }
 
-    // Token lỗi / hết hạn
-    if (!token) {
-      localStorage.removeItem("user")
-      router.push("/login")
+    if (assignment.end_time && new Date() > new Date(assignment.end_time)) {
+      alert("Bài tập đã đóng")
       return
     }
 
-    try {
-      setStarting(true)
-
-      const res = await fetch(`${API_URL}/api/assignments/start`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          assignment_id: id
-        })
-      })
-
-      // Token hết hạn / sai → đá về login luôn
-      if (res.status === 401) {
-        localStorage.removeItem("user")
-        router.push("/login")
-        return
-      }
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        alert(data.error || "Không thể bắt đầu làm bài")
-        return
-      }
-
-      router.push(`/assignments/${id}/do`)
-    } catch (err) {
-      console.error(err)
-      alert("Lỗi kết nối server")
-    } finally {
-      setStarting(false)
-    }
+    router.push(`/assignments/${id}/do`)
   }
-
-
 
   if (loading) return <div className="text-center mt-20">Đang tải...</div>
   if (error) return <div className="text-center mt-20 text-red-500">{error}</div>
@@ -347,14 +300,12 @@ export default function ViewAssignmentPage() {
 
                 <Button
                   size="lg"
-                  disabled={starting}
                   onClick={() =>
                     handleDoAssignment(assignment.id)
                   }
                 >
-                  {starting ? "Đang vào bài..." : "Làm bài"}
+                  Làm bài
                 </Button>
-
               </CardContent>
             </Card>
           )}
