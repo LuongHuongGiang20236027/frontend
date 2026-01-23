@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react" // ✅ thêm useRef
+import { useEffect, useState, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, XCircle } from "lucide-react"
 import { Header } from "@/components/header"
@@ -30,12 +30,6 @@ export default function DoAssignmentPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(null)
   const [attemptId, setAttemptId] = useState(null)
 
-  // ✅ Lưu thời điểm bắt đầu làm bài ở client
-  const [clientStartedAt, setClientStartedAt] = useState(null)
-
-  // ✅ Khóa submit để tránh auto-submit gọi nhiều lần
-  const submitLock = useRef(false)
-
   const router = useRouter()
   const params = useParams()
 
@@ -48,9 +42,7 @@ export default function DoAssignmentPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
 
-  // ============================
   // 🔹 Load assignment
-  // ============================
   useEffect(() => {
     if (!params?.id || !API_URL) return
 
@@ -95,10 +87,7 @@ export default function DoAssignmentPage() {
         }
 
         setAssignment(mappedAssignment)
-
-        // ============================
         // 🔹 Start attempt
-        // ============================
         const startRes = await fetch(`${API_URL}/api/assignments/start`, {
           method: "POST",
           headers: {
@@ -118,17 +107,18 @@ export default function DoAssignmentPage() {
 
         setAttemptId(startData.attempt.id)
 
-        // ✅ Lưu thời điểm bắt đầu ở CLIENT
-        const now = Date.now()
-        setClientStartedAt(now)
-
-        // ============================
         // 🔹 Tính thời gian còn lại
-        // Dùng hoàn toàn time client → tránh lệch giờ server/client
-        // ============================
         if (data.assignment.time_limit) {
-          const limitSeconds = data.assignment.time_limit * 60
-          setRemainingSeconds(limitSeconds)
+          const startedAt = new Date(startData.attempt.started_at).getTime()
+          const limitMs = data.assignment.time_limit * 60 * 1000
+          const now = Date.now()
+
+          const remain = Math.max(
+            Math.floor((startedAt + limitMs - now) / 1000),
+            0
+          )
+
+          setRemainingSeconds(remain)
         }
 
       } catch (err) {
@@ -142,40 +132,34 @@ export default function DoAssignmentPage() {
     fetchAssignment()
   }, [params?.id, router])
 
-  // ============================
-  // 🔹 Countdown + Auto submit
-  // ============================
   useEffect(() => {
     if (remainingSeconds === null) return
+    if (autoSubmitted) return
 
-    // ⛔ Hết giờ → auto submit (chỉ gọi 1 lần)
     if (remainingSeconds <= 0) {
-      if (!submitLock.current) {
-        submitLock.current = true
-        handleSubmit()
-      }
+      setAutoSubmitted(true)
+      handleSubmit()
       return
     }
 
     const timer = setInterval(() => {
-      setRemainingSeconds(prev => Math.max(prev - 1, 0))
+      setRemainingSeconds(prev => prev - 1)
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [remainingSeconds])
+  }, [remainingSeconds, autoSubmitted])
 
-  // ============================
-  // 🔹 Format hiển thị mm:ss
-  // ============================
+
+  // 🔹 Định dạng thời gian hiển thị
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m}:${s.toString().padStart(2, "0")}`
   }
 
-  // ============================
-  // 🔹 Đếm số câu đã trả lời
-  // ============================
+
+
+  // 🔹 Đếm số câu đã trả lời thật sự
   const answeredCount = useMemo(() => {
     return Object.values(userAnswers).filter(arr => arr.length > 0).length
   }, [userAnswers])
@@ -189,9 +173,7 @@ export default function DoAssignmentPage() {
   const isMultiple = question.question_type === "multiple"
   const userAnswer = userAnswers[question.id] || []
 
-  // ============================
   // 🔹 Chọn đáp án
-  // ============================
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
     if (isMultiple) {
       const current = userAnswers[questionId] || []
@@ -223,9 +205,7 @@ export default function DoAssignmentPage() {
     }
   }
 
-  // ============================
   // 🔹 Submit bài
-  // ============================
   const handleSubmit = async () => {
     try {
       const token = getToken()
@@ -236,10 +216,17 @@ export default function DoAssignmentPage() {
         return
       }
 
+      // 🔹 Đúng format backend hay dùng
       const answersPayload = questions.map(q => ({
         question_id: q.id,
-        answer_id: userAnswers[q.id] || []
+        answer_id
+          : userAnswers[q.id] || []
       }))
+
+      console.log("SUBMIT PAYLOAD:", {
+        assignment_id: assignment.id,
+        answers: answersPayload
+      })
 
       const res = await fetch(
         `${API_URL}/api/assignments/submit`,
@@ -270,21 +257,11 @@ export default function DoAssignmentPage() {
     }
   }
 
-  // ============================
   // 🔹 Màn hình kết quả
-  // ============================
   if (isSubmitted) {
     const percentage = assignment.total_score
       ? ((score / assignment.total_score) * 100).toFixed(0)
       : 0
-
-    // ✅ Tính thời gian làm chuẩn từng giây
-    const timeTakenSeconds = clientStartedAt
-      ? Math.floor((Date.now() - clientStartedAt) / 1000)
-      : 0
-
-    const timeTakenMinutes = Math.floor(timeTakenSeconds / 60)
-    const timeTakenRemainSeconds = timeTakenSeconds % 60
 
     return (
       <div className="min-h-screen">
@@ -303,18 +280,12 @@ export default function DoAssignmentPage() {
               <CardDescription>Kết quả của bạn</CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-4 text-center">
+            <CardContent className="space-y-6 text-center">
               <div className="text-5xl font-bold text-primary">
                 {score}/{assignment.total_score}
               </div>
-
-              <p className="text-lg text-muted-foreground">
+              <p className="mt-2 text-lg text-muted-foreground">
                 {percentage}% điểm
-              </p>
-
-              {/* ✅ Hiển thị thời gian làm */}
-              <p className="text-muted-foreground">
-                ⏰ Thời gian làm: {timeTakenMinutes} phút {timeTakenRemainSeconds} giây
               </p>
             </CardContent>
 
@@ -344,9 +315,6 @@ export default function DoAssignmentPage() {
     )
   }
 
-  // ============================
-  // 🔹 Màn hình làm bài
-  // ============================
   return (
     <div className="min-h-screen">
       <Header />
@@ -370,12 +338,11 @@ export default function DoAssignmentPage() {
             <div className="text-sm font-medium text-primary">
               {answeredCount} / {questions.length} đã trả lời
             </div>
-
             {remainingSeconds !== null && (
               <div
                 className={`text-lg font-bold ${remainingSeconds <= 60
-                    ? "text-destructive animate-pulse"
-                    : "text-primary"
+                  ? "text-destructive animate-pulse"
+                  : "text-primary"
                   }`}
               >
                 ⏳ {formatTime(remainingSeconds)}
@@ -470,7 +437,7 @@ export default function DoAssignmentPage() {
               {currentQuestion === questions.length - 1 ? (
                 <Button
                   onClick={handleSubmit}
-                  disabled={answeredCount !== questions.length}
+                  disabled={answeredCount !== questions.length || autoSubmitted}
                 >
                   Nộp bài
                 </Button>
