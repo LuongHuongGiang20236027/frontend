@@ -77,27 +77,51 @@ export default function ViewAssignmentPage() {
 
   const handleDoAssignment = async id => {
     const user = localStorage.getItem("user")
+
+    // Chưa đăng nhập
     if (!user) {
-      alert("Vui lòng đăng nhập để làm bài")
+      router.push("/login")
+      return
+    }
+
+    let token = null
+
+    try {
+      const parsedUser = JSON.parse(user)
+      token = parsedUser.accessToken || parsedUser.token
+    } catch {
+      localStorage.removeItem("user")
+      router.push("/login")
+      return
+    }
+
+    // Token lỗi / hết hạn
+    if (!token) {
+      localStorage.removeItem("user")
+      router.push("/login")
       return
     }
 
     try {
       setStarting(true)
 
-      const res = await fetch(
-        `${API_URL}/api/assignments/start`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${JSON.parse(user).token}`
-          },
-          body: JSON.stringify({
-            assignment_id: id
-          })
-        }
-      )
+      const res = await fetch(`${API_URL}/api/assignments/start`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          assignment_id: id
+        })
+      })
+
+      // Token hết hạn / sai → đá về login luôn
+      if (res.status === 401) {
+        localStorage.removeItem("user")
+        router.push("/login")
+        return
+      }
 
       const data = await res.json()
 
@@ -106,7 +130,6 @@ export default function ViewAssignmentPage() {
         return
       }
 
-      // OK → backend đã tạo attempt
       router.push(`/assignments/${id}/do`)
     } catch (err) {
       console.error(err)
@@ -115,6 +138,7 @@ export default function ViewAssignmentPage() {
       setStarting(false)
     }
   }
+
 
 
   if (loading) return <div className="text-center mt-20">Đang tải...</div>
