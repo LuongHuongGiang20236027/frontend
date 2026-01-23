@@ -56,20 +56,14 @@ export default function DoAssignmentPage() {
   // =============================
   // SUBMIT CHUẨN
   // =============================
-  const handleSubmit = useCallback(async () => {
+  const submitAssignment = useCallback(async (reason = "manual") => {
     if (submitLock.current) return
     submitLock.current = true
     setIsSubmitting(true)
 
     try {
       const token = getToken()
-      if (!token) {
-        alert("Vui lòng đăng nhập để nộp bài")
-        router.push("/login")
-        return
-      }
-
-      if (!assignment) return
+      if (!token || !assignment) return
 
       const questions = assignment.questions || []
       const answersPayload = questions.map(q => ({
@@ -77,28 +71,28 @@ export default function DoAssignmentPage() {
         answer_id: userAnswers[q.id] || []
       }))
 
+      const payload = {
+        assignment_id: assignment.id,
+        answers: answersPayload,
+        submitted_at: new Date().toISOString(),
+        submit_reason: reason // manual | timeup | fullscreen | unload
+      }
+
       const res = await fetch(`${API_URL}/api/assignments/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          assignment_id: assignment.id,
-          answers: answersPayload
-        })
+        body: JSON.stringify(payload)
       })
 
       const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Nộp bài thất bại")
-      }
+      if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
 
       setScore(Number(data.score || 0))
       setIsSubmitted(true)
 
-      // Thoát fullscreen khi xong
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => { })
       }
@@ -108,7 +102,7 @@ export default function DoAssignmentPage() {
       setIsSubmitting(false)
       alert(err.message || "Có lỗi khi nộp bài")
     }
-  }, [assignment, userAnswers, router])
+  }, [assignment, userAnswers])
 
   // =============================
   // LOAD ASSIGNMENT
@@ -197,7 +191,7 @@ export default function DoAssignmentPage() {
   }, [params?.id, router])
 
   // =============================
-  // TIMER CHUẨN
+  // TIMER
   // =============================
   useEffect(() => {
     if (remainingSeconds === null) return
@@ -224,35 +218,53 @@ export default function DoAssignmentPage() {
     if (timeUp || isSubmitted || autoSubmitRef.current) return
 
     autoSubmitRef.current = true
-    console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
     setTimeUp(true)
-    handleSubmit()
-  }, [remainingSeconds, timeUp, isSubmitted, handleSubmit])
+
+    console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
+    submitAssignment("timeup")
+  }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
 
   // =============================
-  // CHẶN ĐÓNG TAB / RELOAD
+  // ĐÓNG TAB / RELOAD
   // =============================
   useEffect(() => {
-    const handler = e => {
-      if (!isSubmitting && !timeUp && !isSubmitted) {
-        e.preventDefault()
-        e.returnValue = ""
-      }
+    const handler = () => {
+      if (submitLock.current || isSubmitted || !assignment) return
+      submitLock.current = true
+
+      try {
+        const token = getToken()
+        if (!token) return
+
+        const questions = assignment.questions || []
+        const answersPayload = questions.map(q => ({
+          question_id: q.id,
+          answer_id: userAnswers[q.id] || []
+        }))
+
+        const payload = JSON.stringify({
+          assignment_id: assignment.id,
+          answers: answersPayload,
+          submitted_at: new Date().toISOString(),
+          submit_reason: "unload"
+        })
+
+        navigator.sendBeacon(
+          `${API_URL}/api/assignments/submit`,
+          new Blob([payload], { type: "application/json" })
+        )
+      } catch { }
     }
 
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [isSubmitting, timeUp, isSubmitted])
+  }, [assignment, userAnswers, isSubmitted])
 
   // =============================
-  // FULLSCREEN → THOÁT = SUBMIT
+  // FULLSCREEN → ESC = AUTO SUBMIT
   // =============================
   useEffect(() => {
-    if (
-      !document.fullscreenElement &&
-      !isSubmitted &&
-      !autoSubmitRef.current
-    ) {
+    if (!document.fullscreenElement && !isSubmitted) {
       document.documentElement.requestFullscreen().catch(() => { })
     }
 
@@ -264,26 +276,15 @@ export default function DoAssignmentPage() {
         !autoSubmitRef.current
       ) {
         autoSubmitRef.current = true
-        alert("⚠ Bạn đã thoát fullscreen. Bài sẽ được nộp!")
-        handleSubmit()
+        alert("⚠ Bạn đã thoát fullscreen. Bài sẽ được tự động nộp!")
+        submitAssignment("fullscreen")
       }
     }
 
     document.addEventListener("fullscreenchange", onFullScreenChange)
     return () =>
       document.removeEventListener("fullscreenchange", onFullScreenChange)
-  }, [timeUp, isSubmitted, handleSubmit])
-
-  // =============================
-  // THOÁT CHỦ ĐỘNG
-  // =============================
-  const handleExit = () => {
-    const ok = confirm("Thoát sẽ nộp bài ngay. Bạn chắc không?")
-    if (ok) {
-      autoSubmitRef.current = true
-      handleSubmit()
-    }
-  }
+  }, [timeUp, isSubmitted, submitAssignment])
 
   // =============================
   // HELPERS
@@ -508,39 +509,33 @@ export default function DoAssignmentPage() {
               )}
             </CardContent>
 
-            <CardFooter className="flex justify-between">
-              <Button
-                variant="destructive"
-                onClick={handleExit}
-              >
-                Thoát bài
-              </Button>
-
-              <div className="flex gap-2">
+            <CardFooter className="flex justify-end">
+              {currentQuestion === questions.length - 1 && (
                 <Button
-                  variant="outline"
-                  onClick={handlePrevious}
-                  disabled={currentQuestion === 0}
+                  onClick={() => submitAssignment("manual")}
+                  disabled={
+                    answeredCount !== questions.length ||
+                    isSubmitting
+                  }
                 >
-                  Câu trước
+                  Nộp bài
                 </Button>
+              )}
 
-                {currentQuestion === questions.length - 1 ? (
+              {currentQuestion !== questions.length - 1 && (
+                <div className="flex gap-2">
                   <Button
-                    onClick={handleSubmit}
-                    disabled={
-                      answeredCount !== questions.length ||
-                      isSubmitting
-                    }
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentQuestion === 0}
                   >
-                    Nộp bài
+                    Câu trước
                   </Button>
-                ) : (
                   <Button onClick={handleNext}>
                     Câu tiếp theo
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </CardFooter>
           </Card>
         </div>
