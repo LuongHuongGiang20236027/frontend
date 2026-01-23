@@ -108,13 +108,8 @@ export default function HomePage() {
 
   // ❤️ LIKE DOCUMENT (JWT)
   const handleLike = async (docId) => {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-      alert("Vui lòng đăng nhập để thích tài liệu")
-      router.push("/login")
-      return
-    }
+    const token = requireLogin(router, "Vui lòng đăng nhập để thích tài liệu")
+    if (!token) return
 
     const isLiked = likedDocs.has(docId)
 
@@ -148,11 +143,13 @@ export default function HomePage() {
         body: JSON.stringify({ document_id: docId }),
       })
 
-      if (!res.ok) throw new Error("Like failed")
+      if (!res.ok) {
+        throw new Error("Like failed")
+      }
     } catch (err) {
       console.error(err)
 
-      // rollback
+      // rollback giống DocumentDetail
       setLikedDocs((prev) => {
         const next = new Set(prev)
         isLiked ? next.add(docId) : next.delete(docId)
@@ -171,21 +168,37 @@ export default function HomePage() {
             : doc
         )
       )
+
+      alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
+      router.push("/login")
     }
   }
 
-  // ✅ LÀM BÀI = CHECK JWT
-  const handleDoAssignment = (assignmentId) => {
-    const token = localStorage.getItem("token")
 
-    if (!token) {
-      alert("Vui lòng đăng nhập để làm bài tập")
-      router.push("/login")
+  // ✅ LÀM BÀI = CHECK JWT
+  const handleDoAssignment = (assignment) => {
+    const token = requireLogin(router, "Vui lòng đăng nhập để làm bài tập")
+    if (!token) return
+
+    if (
+      assignment.start_time &&
+      new Date() < new Date(assignment.start_time)
+    ) {
+      alert("Bài tập chưa mở")
       return
     }
 
-    router.push(`/assignments/${assignmentId}/do`)
+    if (
+      assignment.end_time &&
+      new Date() > new Date(assignment.end_time)
+    ) {
+      alert("Bài tập đã đóng")
+      return
+    }
+
+    router.push(`/assignments/${assignment.id}/do`)
   }
+
 
   return (
     <div className="min-h-screen">
@@ -320,7 +333,7 @@ export default function HomePage() {
                       <Button
                         className="flex-1"
                         onClick={() =>
-                          handleDoAssignment(assignment.id)
+                          handleDoAssignment(assignment)
                         }
                       >
                         Làm bài
