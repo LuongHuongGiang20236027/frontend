@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useCallback } from "react"
+import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, XCircle } from "lucide-react"
 import { Header } from "@/components/header"
@@ -26,10 +26,21 @@ const getToken = () => {
   return localStorage.getItem("token")
 }
 
+// 🔀 Shuffle array
+const shuffleArray = arr => {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+      ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
 export default function DoAssignmentPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(null)
-  const [attemptId, setAttemptId] = useState(null)
   const [autoSubmitted, setAutoSubmitted] = useState(false)
+
+  const submitLock = useRef(false)
 
   const router = useRouter()
   const params = useParams()
@@ -44,9 +55,12 @@ export default function DoAssignmentPage() {
   const [score, setScore] = useState(0)
 
   // =============================
-  // 🔹 Submit bài (memoized để dùng trong timer)
+  // 🔹 Submit bài (chống submit trùng)
   // =============================
   const handleSubmit = useCallback(async () => {
+    if (submitLock.current) return
+    submitLock.current = true
+
     try {
       const token = getToken()
 
@@ -87,6 +101,7 @@ export default function DoAssignmentPage() {
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
+      submitLock.current = false
       alert(err.message || "Có lỗi khi nộp bài")
     }
   }, [assignment, userAnswers, router])
@@ -119,19 +134,23 @@ export default function DoAssignmentPage() {
 
         const data = await res.json()
 
-        // 🔹 Map lại format cho FE
+        // 🔀 Random câu + đáp án
         const mappedAssignment = {
           ...data.assignment,
-          questions: data.assignment.questions.map(q => ({
-            id: q.id,
-            question_text: q.content,
-            question_type: q.type,
-            score: q.score,
-            options: q.answers.map(a => ({
-              id: a.id,
-              option_text: a.content
+          questions: shuffleArray(
+            data.assignment.questions.map(q => ({
+              id: q.id,
+              question_text: q.content,
+              question_type: q.type,
+              score: q.score,
+              options: shuffleArray(
+                q.answers.map(a => ({
+                  id: a.id,
+                  option_text: a.content
+                }))
+              )
             }))
-          }))
+          )
         }
 
         setAssignment(mappedAssignment)
@@ -154,9 +173,7 @@ export default function DoAssignmentPage() {
           throw new Error(startData.error || "Không thể bắt đầu bài làm")
         }
 
-        setAttemptId(startData.attempt.id)
-
-        // 🔹 Tính thời gian còn lại (chuẩn tới giây)
+        // 🔹 Tính thời gian còn lại (chuẩn server)
         if (data.assignment.time_limit) {
           const startedAt = new Date(startData.attempt.started_at).getTime()
           const limitMs = data.assignment.time_limit * 60 * 1000
@@ -180,24 +197,78 @@ export default function DoAssignmentPage() {
   }, [params?.id, router])
 
   // =============================
-  // 🔹 Timer + Auto submit
+  // 🔹 Timer đếm ngược
   // =============================
   useEffect(() => {
     if (remainingSeconds === null) return
     if (autoSubmitted || isSubmitted) return
-
-    if (remainingSeconds <= 0) {
-      setAutoSubmitted(true)
-      handleSubmit()
-      return
-    }
+    if (remainingSeconds <= 0) return
 
     const timer = setInterval(() => {
       setRemainingSeconds(prev => prev - 1)
     }, 1000)
 
     return () => clearInterval(timer)
+  }, [remainingSeconds, autoSubmitted, isSubmitted])
+
+  // =============================
+  // 🔹 Auto submit khi hết giờ
+  // =============================
+  useEffect(() => {
+    if (remainingSeconds !== 0) return
+    if (autoSubmitted || isSubmitted) return
+
+    console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
+    setAutoSubmitted(true)
+    handleSubmit()
   }, [remainingSeconds, autoSubmitted, isSubmitted, handleSubmit])
+
+  // =============================
+  // 🔒 Chống refresh / đóng tab
+  // =============================
+  useEffect(() => {
+    const handler = e => {
+      e.preventDefault()
+      e.returnValue = ""
+    }
+
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [])
+
+  // =============================
+  // 🔀 Phát hiện chuyển tab
+  // =============================
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && !autoSubmitted && !isSubmitted) {
+        alert("⚠ Không được chuyển tab khi đang làm bài!")
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility)
+  }, [autoSubmitted, isSubmitted])
+
+  // =============================
+  // 🖥 Fullscreen bắt buộc
+  // =============================
+  useEffect(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => { })
+    }
+
+    const onFullScreenChange = () => {
+      if (!document.fullscreenElement && !autoSubmitted && !isSubmitted) {
+        alert("⚠ Không được thoát chế độ toàn màn hình khi đang làm bài!")
+      }
+    }
+
+    document.addEventListener("fullscreenchange", onFullScreenChange)
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullScreenChange)
+  }, [autoSubmitted, isSubmitted])
 
   // =============================
   // 🔹 Helpers
