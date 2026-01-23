@@ -42,6 +42,7 @@ export default function DoAssignmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const submitLock = useRef(false)
+  const autoSubmitRef = useRef(false)
 
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -196,15 +197,20 @@ export default function DoAssignmentPage() {
   }, [params?.id, router])
 
   // =============================
-  // TIMER
+  // TIMER CHUẨN
   // =============================
   useEffect(() => {
     if (remainingSeconds === null) return
     if (isSubmitted || timeUp) return
-    if (remainingSeconds <= 0) return
 
     const timer = setInterval(() => {
-      setRemainingSeconds(prev => prev - 1)
+      setRemainingSeconds(prev => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          return 0
+        }
+        return prev - 1
+      })
     }, 1000)
 
     return () => clearInterval(timer)
@@ -215,8 +221,9 @@ export default function DoAssignmentPage() {
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
-    if (timeUp || isSubmitted) return
+    if (timeUp || isSubmitted || autoSubmitRef.current) return
 
+    autoSubmitRef.current = true
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
     setTimeUp(true)
     handleSubmit()
@@ -238,10 +245,14 @@ export default function DoAssignmentPage() {
   }, [isSubmitting, timeUp, isSubmitted])
 
   // =============================
-  // FULLSCREEN
+  // FULLSCREEN → THOÁT = SUBMIT
   // =============================
   useEffect(() => {
-    if (!document.fullscreenElement && !isSubmitted) {
+    if (
+      !document.fullscreenElement &&
+      !isSubmitted &&
+      !autoSubmitRef.current
+    ) {
       document.documentElement.requestFullscreen().catch(() => { })
     }
 
@@ -249,9 +260,11 @@ export default function DoAssignmentPage() {
       if (
         !document.fullscreenElement &&
         !timeUp &&
-        !isSubmitted
+        !isSubmitted &&
+        !autoSubmitRef.current
       ) {
-        alert("⚠ Thoát fullscreen sẽ nộp bài!")
+        autoSubmitRef.current = true
+        alert("⚠ Bạn đã thoát fullscreen. Bài sẽ được nộp!")
         handleSubmit()
       }
     }
@@ -267,6 +280,7 @@ export default function DoAssignmentPage() {
   const handleExit = () => {
     const ok = confirm("Thoát sẽ nộp bài ngay. Bạn chắc không?")
     if (ok) {
+      autoSubmitRef.current = true
       handleSubmit()
     }
   }
