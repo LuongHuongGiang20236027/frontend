@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BookOpen } from "lucide-react"
+import { BookOpen, Clock, Repeat } from "lucide-react"
 import {
   Card,
   CardContent,
