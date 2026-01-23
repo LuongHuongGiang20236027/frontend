@@ -31,6 +31,11 @@ export default function CreateAssignmentPage() {
     title: "",
     description: "",
     thumbnail: null,
+
+    start_time: "",
+    end_time: "",
+    time_limit: "",
+    max_attempts: 1,
   })
 
   const [questions, setQuestions] = useState([
@@ -211,6 +216,16 @@ export default function CreateAssignmentPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (
+      formData.start_time &&
+      formData.end_time &&
+      new Date(formData.start_time) >=
+      new Date(formData.end_time)
+    ) {
+      alert("Thời gian kết thúc phải sau thời gian bắt đầu")
+      return
+    }
+
 
     if (!API_URL) {
       alert("Chưa cấu hình API_URL trên hệ thống")
@@ -255,6 +270,29 @@ export default function CreateAssignmentPage() {
       fd.append("title", formData.title)
       fd.append("description", formData.description || "")
       fd.append("total_score", totalScore.toString())
+      if (formData.start_time) {
+        fd.append(
+          "start_time",
+          new Date(formData.start_time).toISOString()
+        )
+      }
+
+      if (formData.end_time) {
+        fd.append(
+          "end_time",
+          new Date(formData.end_time).toISOString()
+        )
+      }
+
+      if (formData.time_limit) {
+        fd.append(
+          "time_limit",
+          Number(formData.time_limit).toString()
+        )
+      }
+
+      fd.append("max_attempts", formData.max_attempts.toString())
+
 
       fd.append(
         "questions",
@@ -365,7 +403,69 @@ export default function CreateAssignmentPage() {
                       rows={3}
                     />
                   </div>
-
+                  <div className="space-y-2">
+                    <Label htmlFor="start_time">Thời gian bắt đầu</Label>
+                    <Input
+                      id="start_time"
+                      type="datetime-local"
+                      value={formData.start_time}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          start_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end_time">Thời gian kết thúc</Label>
+                    <Input
+                      id="end_time"
+                      type="datetime-local"
+                      value={formData.end_time}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          end_time: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="time_limit">
+                      Giới hạn thời gian (phút)
+                    </Label>
+                    <Input
+                      id="time_limit"
+                      type="number"
+                      min="1"
+                      placeholder="VD: 30"
+                      value={formData.time_limit}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          time_limit: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_attempts">
+                      Số lần làm tối đa
+                    </Label>
+                    <Input
+                      id="max_attempts"
+                      type="number"
+                      min="1"
+                      value={formData.max_attempts}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          max_attempts: Number(e.target.value || 1),
+                        })
+                      }
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="thumbnail">Ảnh bìa</Label>
                     <Input
