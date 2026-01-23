@@ -9,6 +9,18 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
+const formatDateTime = (value) => {
+  if (!value) return "Không giới hạn"
+  const d = new Date(value)
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
+
 export function AssignmentDetail({ assignment }) {
   const router = useRouter()
 
@@ -254,18 +266,58 @@ export function AssignmentDetail({ assignment }) {
                 <CardTitle>Thông tin bài tập</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Số câu hỏi:</span>
-                  <span className="font-semibold">{assignment.questions.length}</span>
+                  <span className="font-semibold">
+                    {assignment.questions.length}
+                  </span>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Tổng điểm:</span>
-                  <span className="font-semibold text-primary">{assignment.total_score}</span>
+                  <span className="font-semibold text-primary">
+                    {assignment.total_score}
+                  </span>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Người tạo:</span>
-                  <span className="font-semibold">{assignment.creator_name}</span>
+                  <span className="font-semibold">
+                    {assignment.creator_name}
+                  </span>
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Thời gian mở:</span>
+                  <span className="font-semibold">
+                    {formatDateTime(assignment.start_time)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Thời gian đóng:</span>
+                  <span className="font-semibold">
+                    {formatDateTime(assignment.end_time)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Giới hạn thời gian:</span>
+                  <span className="font-semibold">
+                    {assignment.time_limit
+                      ? `${assignment.time_limit} phút`
+                      : "Không giới hạn"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Số lần làm tối đa:</span>
+                  <span className="font-semibold">
+                    {assignment.max_attempts || "Không giới hạn"}
+                  </span>
+                </div>
+
               </CardContent>
             </Card>
 
