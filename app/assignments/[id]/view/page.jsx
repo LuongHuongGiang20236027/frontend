@@ -35,6 +35,7 @@ export default function ViewAssignmentPage() {
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [starting, setStarting] = useState(false)
 
   useEffect(() => {
     if (!params?.id) return
@@ -74,25 +75,47 @@ export default function ViewAssignmentPage() {
     fetchAssignment()
   }, [params?.id, router])
 
-  const handleDoAssignment = id => {
+  const handleDoAssignment = async id => {
     const user = localStorage.getItem("user")
     if (!user) {
       alert("Vui lòng đăng nhập để làm bài")
       return
     }
 
-    if (assignment.start_time && new Date() < new Date(assignment.start_time)) {
-      alert("Bài tập chưa mở")
-      return
-    }
+    try {
+      setStarting(true)
 
-    if (assignment.end_time && new Date() > new Date(assignment.end_time)) {
-      alert("Bài tập đã đóng")
-      return
-    }
+      const res = await fetch(
+        `${API_URL}/api/assignments/start`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${JSON.parse(user).token}`
+          },
+          body: JSON.stringify({
+            assignment_id: id
+          })
+        }
+      )
 
-    router.push(`/assignments/${id}/do`)
+      const data = await res.json()
+
+      if (!res.ok) {
+        alert(data.error || "Không thể bắt đầu làm bài")
+        return
+      }
+
+      // OK → backend đã tạo attempt
+      router.push(`/assignments/${id}/do`)
+    } catch (err) {
+      console.error(err)
+      alert("Lỗi kết nối server")
+    } finally {
+      setStarting(false)
+    }
   }
+
 
   if (loading) return <div className="text-center mt-20">Đang tải...</div>
   if (error) return <div className="text-center mt-20 text-red-500">{error}</div>
@@ -300,12 +323,14 @@ export default function ViewAssignmentPage() {
 
                 <Button
                   size="lg"
+                  disabled={starting}
                   onClick={() =>
                     handleDoAssignment(assignment.id)
                   }
                 >
-                  Làm bài
+                  {starting ? "Đang vào bài..." : "Làm bài"}
                 </Button>
+
               </CardContent>
             </Card>
           )}
