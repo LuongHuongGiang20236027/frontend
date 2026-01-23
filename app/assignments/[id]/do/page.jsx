@@ -75,7 +75,7 @@ export default function DoAssignmentPage() {
           assignment_id: assignment.id,
           answers: answersPayload,
           submitted_at: new Date().toISOString(),
-          submit_reason: reason // manual | timeup | fullscreen | unload
+          submit_reason: reason
         }
 
         const res = await fetch(`${API_URL}/api/assignments/submit`, {
@@ -213,7 +213,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // TIME UP → AUTO SUBMIT
+  // TIME UP → AUTO SUBMIT + FORCE UI
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -223,7 +223,11 @@ export default function DoAssignmentPage() {
     setTimeUp(true)
 
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
-    submitAssignment("timeup")
+
+    submitAssignment("timeup").finally(() => {
+      // đảm bảo luôn chuyển sang màn hình kết quả
+      setIsSubmitted(true)
+    })
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
 
   // =============================
@@ -274,12 +278,7 @@ export default function DoAssignmentPage() {
       const fs = !!document.fullscreenElement
       setIsFullscreen(fs)
 
-      if (
-        !fs &&
-        !timeUp &&
-        !isSubmitted &&
-        !autoSubmitRef.current
-      ) {
+      if (!fs && !timeUp && !isSubmitted && !autoSubmitRef.current) {
         autoSubmitRef.current = true
         alert("⚠ Bạn đã thoát fullscreen. Bài sẽ được tự động nộp!")
         submitAssignment("fullscreen")
@@ -311,12 +310,12 @@ export default function DoAssignmentPage() {
   const questions = assignment.questions || []
 
   // =============================
-  // FLOATING BAR
+  // FLOATING BAR (ĐỒNG HỒ DUY NHẤT - MÀU ĐỎ)
   // =============================
   const FloatingBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur border-b">
       <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between text-sm font-medium">
-        <div>
+        <div className="text-destructive animate-pulse font-bold">
           ⏳ {remainingSeconds !== null
             ? formatTime(remainingSeconds)
             : "--:--"}
@@ -452,17 +451,6 @@ export default function DoAssignmentPage() {
             <div className="text-sm font-medium text-primary">
               {answeredCount} / {questions.length} đã trả lời
             </div>
-
-            {remainingSeconds !== null && (
-              <div
-                className={`text-lg font-bold ${remainingSeconds <= 60
-                    ? "text-destructive animate-pulse"
-                    : "text-primary"
-                  }`}
-              >
-                ⏳ {formatTime(remainingSeconds)}
-              </div>
-            )}
           </div>
 
           <AssignmentDetail
