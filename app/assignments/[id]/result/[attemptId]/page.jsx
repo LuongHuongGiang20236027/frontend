@@ -15,6 +15,25 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Format chuẩn VN
+const formatDateVN = (date) => {
+  if (!date) return "—"
+  const d = new Date(date)
+  const day = String(d.getDate()).padStart(2, "0")
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
+}
+
+const formatTimeVN = (date) => {
+  if (!date) return "—"
+  const d = new Date(date)
+  const h = String(d.getHours()).padStart(2, "0")
+  const m = String(d.getMinutes()).padStart(2, "0")
+  const s = String(d.getSeconds()).padStart(2, "0")
+  return `${h}:${m}:${s}`
+}
+
 export default function AssignmentResultPage() {
   const router = useRouter()
   const params = useParams()
@@ -109,28 +128,33 @@ export default function AssignmentResultPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4 text-center">
+          <CardContent className="space-y-3 text-center">
             <div className="text-4xl font-bold text-primary">
               {attempt.score}/{attempt.total_score}
             </div>
-            <p className="mt-2 text-lg text-muted-foreground">
+
+            <p className="text-lg text-muted-foreground">
               {percentage}% điểm
             </p>
-            <p>
-              🗓 Ngày làm:{" "}
-              {new Date(attempt.started_at).toLocaleDateString()}
-            </p>
-            <p>
-              ⏰ Bắt đầu:{" "}
-              {new Date(attempt.started_at).toLocaleTimeString()}
-            </p>
-            <p>
-              🏁 Nộp bài:{" "}
-              {new Date(attempt.submitted_at).toLocaleTimeString()}
-            </p>
-            <p className="font-medium text-primary">
-              ⏳ Thời gian làm: {attempt.duration_minutes} phút
-            </p>
+
+            <div className="space-y-1 text-sm text-muted-foreground">
+              <p>
+                🗓 Ngày làm: {formatDateVN(attempt.started_at)}
+              </p>
+              <p>
+                ⏰ Bắt đầu: {formatTimeVN(attempt.started_at)}
+              </p>
+              <p>
+                🏁 Nộp bài: {formatTimeVN(attempt.submitted_at)}
+              </p>
+              {attempt.duration && (
+                <p className="font-medium text-primary">
+                  ⏳ Thời gian làm:{" "}
+                  {attempt.duration.minutes} phút{" "}
+                  {attempt.duration.seconds} giây
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -186,8 +210,7 @@ export default function AssignmentResultPage() {
                   if (isRight)
                     bg = "bg-primary/10 border-primary"
                   else if (isUser && !isRight)
-                    bg =
-                      "bg-destructive/10 border-destructive"
+                    bg = "bg-destructive/10 border-destructive"
 
                   return (
                     <div
