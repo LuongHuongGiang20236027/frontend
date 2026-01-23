@@ -34,6 +34,7 @@ const shuffleArray = arr => {
 export default function DoAssignmentPage() {
   const router = useRouter()
   const params = useParams()
+  const [attemptInfo, setAttemptInfo] = useState(null)
 
   const [remainingSeconds, setRemainingSeconds] = useState(null)
   const [timeUp, setTimeUp] = useState(false)
@@ -49,6 +50,22 @@ export default function DoAssignmentPage() {
   const [userAnswers, setUserAnswers] = useState({})
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
+
+  const formatDateVN = date => {
+    if (!date) return "—"
+    const d = new Date(date)
+    return `${String(d.getDate()).padStart(2, "0")}/${String(
+      d.getMonth() + 1
+    ).padStart(2, "0")}/${d.getFullYear()}`
+  }
+
+  const formatTimeVN = date => {
+    if (!date) return "—"
+    const d = new Date(date)
+    return `${String(d.getHours()).padStart(2, "0")}:${String(
+      d.getMinutes()
+    ).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`
+  }
 
   // =============================
   // SUBMIT
@@ -88,6 +105,7 @@ export default function DoAssignmentPage() {
       if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
 
       setScore(Number(data.score || 0))
+      setAttemptInfo(data.attempt)
       setIsSubmitted(true)
     } catch (err) {
       console.error(err)
@@ -262,13 +280,31 @@ export default function DoAssignmentPage() {
               <CardDescription>Kết quả của bạn</CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-6 text-center">
+            <CardContent className="space-y-4 text-center">
               <div className="text-5xl font-bold text-primary">
                 {score}/{assignment.total_score}
               </div>
-              <p className="mt-2 text-lg text-muted-foreground">
+
+              <p className="text-lg text-muted-foreground">
                 {percentage}% điểm
               </p>
+
+              {attemptInfo && (
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p>🗓 Ngày làm: {formatDateVN(attemptInfo.started_at)}</p>
+                  <p>⏰ Bắt đầu: {formatTimeVN(attemptInfo.started_at)}</p>
+                  <p>🏁 Nộp bài: {formatTimeVN(attemptInfo.submitted_at)}</p>
+
+                  {attemptInfo.duration && (
+                    <p className="font-medium text-primary">
+                      ⏳ Thời gian làm:{" "}
+                      {attemptInfo.duration.minutes} phút{" "}
+                      {attemptInfo.duration.seconds} giây
+                    </p>
+                  )}
+                </div>
+              )}
+
               {timeUp && (
                 <p className="text-sm text-muted-foreground animate-pulse">
                   ⏳ Bài đã được tự động nộp khi hết giờ
@@ -321,8 +357,8 @@ export default function DoAssignmentPage() {
             {remainingSeconds !== null && (
               <div
                 className={`text-lg font-bold ${remainingSeconds <= 60
-                    ? "text-destructive animate-pulse"
-                    : "text-primary"
+                  ? "text-destructive animate-pulse"
+                  : "text-primary"
                   }`}
               >
                 ⏳ {formatTime(remainingSeconds)}
