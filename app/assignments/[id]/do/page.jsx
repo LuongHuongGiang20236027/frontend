@@ -104,19 +104,16 @@ export default function DoAssignmentPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
 
-      // 👉 Redirect sang trang kết quả chi tiết
-      const attemptId = data.attempt.id
-      router.push(
-        `/assignments/${assignment.id}/result/${attemptId}`
-      )
+      setScore(Number(data.score || 0))
+      setAttemptInfo(data.attempt)
+      setIsSubmitted(true)
     } catch (err) {
       console.error(err)
       submitLock.current = false
       setIsSubmitting(false)
       alert(err.message || "Có lỗi khi nộp bài")
     }
-  }, [assignment, userAnswers, router])
-
+  }, [assignment, userAnswers])
 
   // =============================
   // LOAD ASSIGNMENT + START ATTEMPT
@@ -258,7 +255,59 @@ export default function DoAssignmentPage() {
 
   const questions = assignment.questions || []
 
+  // =============================
+  // RESULT SCREEN
+  // =============================
+  if (isSubmitted) {
+    const percentage = assignment.total_score
+      ? ((score / assignment.total_score) * 100).toFixed(0)
+      : 0
 
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <Card className="mx-auto max-w-2xl">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                {Number(percentage) >= 70 ? (
+                  <CheckCircle2 className="h-12 w-12 text-primary" />
+                ) : (
+                  <XCircle className="h-12 w-12 text-destructive" />
+                )}
+              </div>
+              <CardTitle className="text-3xl">Hoàn thành bài tập!</CardTitle>
+              <CardDescription>Kết quả của bạn</CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6 text-center">
+              <div className="text-5xl font-bold text-primary">
+                {score}/{assignment.total_score}
+              </div>
+              <p className="mt-2 text-lg text-muted-foreground">
+                {percentage}% điểm
+              </p>
+              {timeUp && (
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  ⏳ Bài đã được tự động nộp khi hết giờ
+                </p>
+              )}
+            </CardContent>
+
+            <CardFooter className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/assignments")}
+                className="flex-1"
+              >
+                Danh sách bài tập
+              </Button>
+            </CardFooter>
+          </Card>
+        </main>
+      </div>
+    )
+  }
 
   // =============================
   // DO ASSIGNMENT SCREEN
