@@ -439,6 +439,8 @@ export default function CreateAssignmentPage() {
                       id="time_limit"
                       type="number"
                       min="1"
+                      step="1"
+                      className="pointer-events-auto"
                       placeholder="VD: 30"
                       value={formData.time_limit}
                       onChange={(e) =>
@@ -457,6 +459,8 @@ export default function CreateAssignmentPage() {
                       id="max_attempts"
                       type="number"
                       min="1"
+                      step="1"
+                      className="pointer-events-auto"
                       value={formData.max_attempts}
                       onChange={(e) =>
                         setFormData({
@@ -469,15 +473,19 @@ export default function CreateAssignmentPage() {
                   <div className="space-y-2">
                     <Label htmlFor="thumbnail">Ảnh bìa</Label>
                     <Input
-                      id="thumbnail"
-                      type="file"
-                      accept="image/*"
+                      type="number"
+                      min="1"
+                      step="1"
+                      className="pointer-events-auto"
+                      value={question.score}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          thumbnail:
-                            e.target.files?.[0] || null,
-                        })
+                        updateQuestion(
+                          question.id,
+                          "score",
+                          Number.parseInt(
+                            e.target.value || "0"
+                          )
+                        )
                       }
                     />
                   </div>
