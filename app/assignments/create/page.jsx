@@ -477,10 +477,10 @@ export default function CreateAssignmentPage() {
                       min="1"
                       step="1"
                       className="pointer-events-auto"
-                      value={question.score}
+                      value={questions.score}
                       onChange={(e) =>
                         updateQuestion(
-                          question.id,
+                          questions.id,
                           "score",
                           Number.parseInt(
                             e.target.value || "0"
