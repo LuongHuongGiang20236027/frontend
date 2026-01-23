@@ -1,6 +1,6 @@
 "use client"
-
 import { AssignmentDetail } from "@/components/assignment-detail"
+
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, XCircle } from "lucide-react"
@@ -14,26 +14,17 @@ import {
   CardTitle,
   CardFooter
 } from "@/components/ui/card"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// =============================
-// TOKEN
-// =============================
 const getToken = () => {
   if (typeof window === "undefined") return null
-  const user = localStorage.getItem("user")
-  if (!user) return null
-  try {
-    return JSON.parse(user).token
-  } catch {
-    return null
-  }
+  return localStorage.getItem("token")
 }
 
-// =============================
-// HELPERS
-// =============================
 const shuffleArray = arr => {
   const copy = [...arr]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -50,13 +41,9 @@ export default function DoAssignmentPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(null)
   const [timeUp, setTimeUp] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const submitLock = useRef(false)
   const autoSubmitRef = useRef(false)
-
-  // 🔥 REF LƯU ĐÁP ÁN REALTIME (FIX 0 ĐIỂM AUTO SUBMIT)
-  const answersRef = useRef({})
 
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -68,62 +55,55 @@ export default function DoAssignmentPage() {
   const [score, setScore] = useState(0)
 
   // =============================
-  // SUBMIT
+  // SUBMIT CHUẨN
   // =============================
-  const submitAssignment = useCallback(
-    async (reason = "manual", keepalive = false) => {
-      if (submitLock.current) return
-      submitLock.current = true
-      setIsSubmitting(true)
+  const submitAssignment = useCallback(async (reason = "manual") => {
+    if (submitLock.current) return
+    submitLock.current = true
+    setIsSubmitting(true)
 
-      try {
-        const token = getToken()
-        if (!token || !assignment) return
+    try {
+      const token = getToken()
+      if (!token || !assignment) return
 
-        const source = answersRef.current || {}
-        const answersPayload = assignment.questions.map(q => ({
-          question_id: q.id,
-          answer_id: source[q.id] || []
-        }))
+      const questions = assignment.questions || []
+      const answersPayload = questions.map(q => ({
+        question_id: q.id,
+        answer_id: userAnswers[q.id] || []
+      }))
 
-        const payload = {
-          assignment_id: assignment.id,
-          answers: answersPayload,
-          submitted_at: new Date().toISOString(),
-          submit_reason: reason
-        }
-
-        const res = await fetch(`${API_URL}/api/assignments/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(payload),
-          keepalive
-        })
-
-        // Nếu là unload thì không cần xử lý UI
-        if (keepalive) return
-
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
-
-        setScore(Number(data.score || 0))
-        setIsSubmitted(true)
-
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => { })
-        }
-      } catch (err) {
-        console.error(err)
-        submitLock.current = false
-        setIsSubmitting(false)
-        alert(err.message || "Có lỗi khi nộp bài")
+      const payload = {
+        assignment_id: assignment.id,
+        answers: answersPayload,
+        submitted_at: new Date().toISOString(),
+        submit_reason: reason // manual | timeup | fullscreen | unload
       }
-    },
-    [assignment]
-  )
+
+      const res = await fetch(`${API_URL}/api/assignments/submit`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
+
+      setScore(Number(data.score || 0))
+      setIsSubmitted(true)
+
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { })
+      }
+    } catch (err) {
+      console.error(err)
+      submitLock.current = false
+      setIsSubmitting(false)
+      alert(err.message || "Có lỗi khi nộp bài")
+    }
+  }, [assignment, userAnswers])
 
   // =============================
   // LOAD ASSIGNMENT
@@ -232,7 +212,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // TIME UP → AUTO SUBMIT
+  // HẾT GIỜ → AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -242,14 +222,11 @@ export default function DoAssignmentPage() {
     setTimeUp(true)
 
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
-
-    submitAssignment("timeup").finally(() => {
-      setIsSubmitted(true)
-    })
+    submitAssignment("timeup")
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
 
   // =============================
-  // CLOSE TAB / RELOAD
+  // ĐÓNG TAB / RELOAD
   // =============================
   useEffect(() => {
     const handler = () => {
@@ -257,16 +234,35 @@ export default function DoAssignmentPage() {
       submitLock.current = true
 
       try {
-        submitAssignment("unload", true)
+        const token = getToken()
+        if (!token) return
+
+        const questions = assignment.questions || []
+        const answersPayload = questions.map(q => ({
+          question_id: q.id,
+          answer_id: userAnswers[q.id] || []
+        }))
+
+        const payload = JSON.stringify({
+          assignment_id: assignment.id,
+          answers: answersPayload,
+          submitted_at: new Date().toISOString(),
+          submit_reason: "unload"
+        })
+
+        navigator.sendBeacon(
+          `${API_URL}/api/assignments/submit`,
+          new Blob([payload], { type: "application/json" })
+        )
       } catch { }
     }
 
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [assignment, isSubmitted, submitAssignment])
+  }, [assignment, userAnswers, isSubmitted])
 
   // =============================
-  // FULLSCREEN LOCK
+  // FULLSCREEN → ESC = AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (!document.fullscreenElement && !isSubmitted) {
@@ -274,10 +270,12 @@ export default function DoAssignmentPage() {
     }
 
     const onFullScreenChange = () => {
-      const fs = !!document.fullscreenElement
-      setIsFullscreen(fs)
-
-      if (!fs && !timeUp && !isSubmitted && !autoSubmitRef.current) {
+      if (
+        !document.fullscreenElement &&
+        !timeUp &&
+        !isSubmitted &&
+        !autoSubmitRef.current
+      ) {
         autoSubmitRef.current = true
         alert("⚠ Bạn đã thoát fullscreen. Bài sẽ được tự động nộp!")
         submitAssignment("fullscreen")
@@ -307,58 +305,30 @@ export default function DoAssignmentPage() {
   if (!assignment) return null
 
   const questions = assignment.questions || []
+  const question = questions[currentQuestion]
+  const isMultiple = question.question_type === "multiple"
+  const userAnswer = userAnswers[question.id] || []
 
   // =============================
-  // FLOATING BAR
-  // =============================
-  const FloatingBar = () => (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur border-b">
-      <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between text-sm font-medium">
-        <div className="text-destructive animate-pulse font-bold">
-          ⏳ {remainingSeconds !== null
-            ? formatTime(remainingSeconds)
-            : "--:--"}
-        </div>
-
-        <div>
-          Câu {currentQuestion + 1}/{questions.length}
-        </div>
-
-        <div>
-          {answeredCount}/{questions.length} đã trả lời
-        </div>
-      </div>
-    </div>
-  )
-
-  // =============================
-  // ANSWER HANDLERS
+  // CHỌN ĐÁP ÁN
   // =============================
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
-    setUserAnswers(prev => {
-      let updated
+    if (isMultiple) {
+      const current = userAnswers[questionId] || []
+      const newAnswers = current.includes(answerId)
+        ? current.filter(id => id !== answerId)
+        : [...current, answerId]
 
-      if (isMultiple) {
-        const current = prev[questionId] || []
-        const newAnswers = current.includes(answerId)
-          ? current.filter(id => id !== answerId)
-          : [...current, answerId]
-
-        updated = {
-          ...prev,
-          [questionId]: newAnswers
-        }
-      } else {
-        updated = {
-          ...prev,
-          [questionId]: [answerId]
-        }
-      }
-
-      // 🔥 cập nhật ref realtime
-      answersRef.current = updated
-      return updated
-    })
+      setUserAnswers(prev => ({
+        ...prev,
+        [questionId]: newAnswers
+      }))
+    } else {
+      setUserAnswers(prev => ({
+        ...prev,
+        [questionId]: [answerId]
+      }))
+    }
   }
 
   const handleNext = () => {
@@ -374,7 +344,7 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // RESULT SCREEN
+  // MÀN HÌNH KẾT QUẢ
   // =============================
   if (isSubmitted) {
     const percentage = assignment.total_score
@@ -428,17 +398,12 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // DO ASSIGNMENT SCREEN
+  // MÀN HÌNH LÀM BÀI
   // =============================
   return (
     <div className="min-h-screen">
-      {!isFullscreen && <Header />}
-      {isFullscreen && <FloatingBar />}
-
-      <main
-        className={`container mx-auto px-4 py-8 ${isFullscreen ? "pt-14" : ""
-          }`}
-      >
+      <Header />
+      <main className="container mx-auto px-4 py-8">
         <div className="mx-auto max-w-3xl">
           <div className="mb-6 flex items-center justify-between">
             <div>
@@ -458,20 +423,122 @@ export default function DoAssignmentPage() {
             <div className="text-sm font-medium text-primary">
               {answeredCount} / {questions.length} đã trả lời
             </div>
+
+            {remainingSeconds !== null && (
+              <div
+                className={`text-lg font-bold ${remainingSeconds <= 60
+                  ? "text-destructive animate-pulse"
+                  : "text-primary"
+                  }`}
+              >
+                ⏳ {formatTime(remainingSeconds)}
+              </div>
+            )}
           </div>
 
-          <AssignmentDetail
-            questions={questions}
-            currentQuestion={currentQuestion}
-            userAnswers={userAnswers}
-            onAnswerChange={handleAnswerChange}
-            onNext={handleNext}
-            onPrevious={handlePrevious}
-            onSubmit={() => submitAssignment("manual")}
-            answeredCount={answeredCount}
-            isSubmitting={isSubmitting}
-            showResult={false}
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl">
+                {question.question_text}
+              </CardTitle>
+              <CardDescription>
+                {isMultiple
+                  ? "Chọn tất cả đáp án đúng"
+                  : "Chọn một đáp án"} • {question.score} điểm
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              {isMultiple ? (
+                <div className="space-y-3">
+                  {question.options.map(option => (
+                    <div
+                      key={option.id}
+                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        id={`option-${option.id}`}
+                        checked={userAnswer.includes(option.id)}
+                        onCheckedChange={() =>
+                          handleAnswerChange(
+                            question.id,
+                            option.id,
+                            true
+                          )
+                        }
+                      />
+                      <Label
+                        htmlFor={`option-${option.id}`}
+                        className="flex-1 cursor-pointer"
+                      >
+                        {option.option_text}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <RadioGroup
+                  value={userAnswer[0]?.toString()}
+                  onValueChange={val =>
+                    handleAnswerChange(
+                      question.id,
+                      Number(val),
+                      false
+                    )
+                  }
+                >
+                  <div className="space-y-3">
+                    {question.options.map(option => (
+                      <div
+                        key={option.id}
+                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
+                      >
+                        <RadioGroupItem
+                          value={option.id.toString()}
+                          id={`option-${option.id}`}
+                        />
+                        <Label
+                          htmlFor={`option-${option.id}`}
+                          className="flex-1 cursor-pointer"
+                        >
+                          {option.option_text}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                </RadioGroup>
+              )}
+            </CardContent>
+
+            <CardFooter className="flex justify-end">
+              {currentQuestion === questions.length - 1 && (
+                <Button
+                  onClick={() => submitAssignment("manual")}
+                  disabled={
+                    answeredCount !== questions.length ||
+                    isSubmitting
+                  }
+                >
+                  Nộp bài
+                </Button>
+              )}
+
+              {currentQuestion !== questions.length - 1 && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handlePrevious}
+                    disabled={currentQuestion === 0}
+                  >
+                    Câu trước
+                  </Button>
+                  <Button onClick={handleNext}>
+                    Câu tiếp theo
+                  </Button>
+                </div>
+              )}
+            </CardFooter>
+          </Card>
         </div>
       </main>
     </div>
