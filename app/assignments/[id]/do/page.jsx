@@ -38,6 +38,7 @@ export default function DoAssignmentPage() {
   const [remainingSeconds, setRemainingSeconds] = useState(null)
   const [timeUp, setTimeUp] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const submitLock = useRef(false)
   const autoSubmitRef = useRef(false)
@@ -262,7 +263,7 @@ export default function DoAssignmentPage() {
   }, [assignment, userAnswers, isSubmitted])
 
   // =============================
-  // FULLSCREEN LOCK
+  // FULLSCREEN LOCK + STATE
   // =============================
   useEffect(() => {
     if (!document.fullscreenElement && !isSubmitted) {
@@ -270,8 +271,11 @@ export default function DoAssignmentPage() {
     }
 
     const onFullScreenChange = () => {
+      const fs = !!document.fullscreenElement
+      setIsFullscreen(fs)
+
       if (
-        !document.fullscreenElement &&
+        !fs &&
         !timeUp &&
         !isSubmitted &&
         !autoSubmitRef.current
@@ -305,6 +309,29 @@ export default function DoAssignmentPage() {
   if (!assignment) return null
 
   const questions = assignment.questions || []
+
+  // =============================
+  // FLOATING BAR
+  // =============================
+  const FloatingBar = () => (
+    <div className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur border-b">
+      <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between text-sm font-medium">
+        <div>
+          ⏳ {remainingSeconds !== null
+            ? formatTime(remainingSeconds)
+            : "--:--"}
+        </div>
+
+        <div>
+          Câu {currentQuestion + 1}/{questions.length}
+        </div>
+
+        <div>
+          {answeredCount}/{questions.length} đã trả lời
+        </div>
+      </div>
+    </div>
+  )
 
   // =============================
   // ANSWER HANDLERS
@@ -399,8 +426,13 @@ export default function DoAssignmentPage() {
   // =============================
   return (
     <div className="min-h-screen">
-      <Header />
-      <main className="container mx-auto px-4 py-8">
+      {!isFullscreen && <Header />}
+      {isFullscreen && <FloatingBar />}
+
+      <main
+        className={`container mx-auto px-4 py-8 ${isFullscreen ? "pt-14" : ""
+          }`}
+      >
         <div className="mx-auto max-w-3xl">
           <div className="mb-6 flex items-center justify-between">
             <div>
