@@ -249,7 +249,7 @@ export default function HomePage() {
         <section className="py-16">
           <div className="container mx-auto px-4">
             <SectionHeader
-              title="Tất cả bài tập"
+              title="Hệ thống bài tập"
               desc="Thử sức với các bài tập của hệ thống"
               href="/assignments"
             />
@@ -356,7 +356,7 @@ export default function HomePage() {
         <section className="py-16 bg-muted/30">
           <div className="container mx-auto px-4">
             <SectionHeader
-              title="Tài liệu mới"
+              title="Hệ thống tài liệu"
               desc="Khám phá tài liệu học tập chất lượng cao"
               href="/documents"
             />
