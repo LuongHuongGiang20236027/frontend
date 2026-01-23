@@ -95,30 +95,12 @@ export function DocumentDetail({ document: doc }) {
   // xử lý tải tài liệu
   const handleDownload = async () => {
     try {
-      const token = localStorage.getItem("token")
-
-      if (!token) {
-        alert("Vui lòng đăng nhập để tải tài liệu")
-        return
-      }
-
-      const res = await fetch(
-        `${API_URL}/api/documents/${doc.id}/download`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error("Download failed")
-      }
-
+      const res = await fetch(doc.file_url)
       const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
 
+      const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
+
       a.href = url
       a.download = `${doc.title || "document"}.pdf`
 
@@ -128,8 +110,8 @@ export function DocumentDetail({ document: doc }) {
       a.remove()
       window.URL.revokeObjectURL(url)
     } catch (err) {
+      alert("Không thể tải file")
       console.error(err)
-      alert("Bạn không có quyền tải hoặc phiên đăng nhập đã hết hạn")
     }
   }
 
