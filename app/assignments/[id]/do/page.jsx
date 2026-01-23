@@ -1,5 +1,6 @@
 "use client"
 
+import { AssignmentDetail } from "@/components/assignment-detail"
 import { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, XCircle } from "lucide-react"
@@ -13,9 +14,6 @@ import {
   CardTitle,
   CardFooter
 } from "@/components/ui/card"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -54,55 +52,58 @@ export default function DoAssignmentPage() {
   const [score, setScore] = useState(0)
 
   // =============================
-  // SUBMIT CHUẨN
+  // SUBMIT
   // =============================
-  const submitAssignment = useCallback(async (reason = "manual") => {
-    if (submitLock.current) return
-    submitLock.current = true
-    setIsSubmitting(true)
+  const submitAssignment = useCallback(
+    async (reason = "manual") => {
+      if (submitLock.current) return
+      submitLock.current = true
+      setIsSubmitting(true)
 
-    try {
-      const token = getToken()
-      if (!token || !assignment) return
+      try {
+        const token = getToken()
+        if (!token || !assignment) return
 
-      const questions = assignment.questions || []
-      const answersPayload = questions.map(q => ({
-        question_id: q.id,
-        answer_id: userAnswers[q.id] || []
-      }))
+        const questions = assignment.questions || []
+        const answersPayload = questions.map(q => ({
+          question_id: q.id,
+          answer_id: userAnswers[q.id] || []
+        }))
 
-      const payload = {
-        assignment_id: assignment.id,
-        answers: answersPayload,
-        submitted_at: new Date().toISOString(),
-        submit_reason: reason // manual | timeup | fullscreen | unload
+        const payload = {
+          assignment_id: assignment.id,
+          answers: answersPayload,
+          submitted_at: new Date().toISOString(),
+          submit_reason: reason // manual | timeup | fullscreen | unload
+        }
+
+        const res = await fetch(`${API_URL}/api/assignments/submit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
+
+        setScore(Number(data.score || 0))
+        setIsSubmitted(true)
+
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => { })
+        }
+      } catch (err) {
+        console.error(err)
+        submitLock.current = false
+        setIsSubmitting(false)
+        alert(err.message || "Có lỗi khi nộp bài")
       }
-
-      const res = await fetch(`${API_URL}/api/assignments/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
-
-      setScore(Number(data.score || 0))
-      setIsSubmitted(true)
-
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => { })
-      }
-    } catch (err) {
-      console.error(err)
-      submitLock.current = false
-      setIsSubmitting(false)
-      alert(err.message || "Có lỗi khi nộp bài")
-    }
-  }, [assignment, userAnswers])
+    },
+    [assignment, userAnswers]
+  )
 
   // =============================
   // LOAD ASSIGNMENT
@@ -211,7 +212,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // HẾT GIỜ → AUTO SUBMIT
+  // TIME UP → AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -225,7 +226,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
 
   // =============================
-  // ĐÓNG TAB / RELOAD
+  // CLOSE TAB / RELOAD
   // =============================
   useEffect(() => {
     const handler = () => {
@@ -261,7 +262,7 @@ export default function DoAssignmentPage() {
   }, [assignment, userAnswers, isSubmitted])
 
   // =============================
-  // FULLSCREEN → ESC = AUTO SUBMIT
+  // FULLSCREEN LOCK
   // =============================
   useEffect(() => {
     if (!document.fullscreenElement && !isSubmitted) {
@@ -304,12 +305,9 @@ export default function DoAssignmentPage() {
   if (!assignment) return null
 
   const questions = assignment.questions || []
-  const question = questions[currentQuestion]
-  const isMultiple = question.question_type === "multiple"
-  const userAnswer = userAnswers[question.id] || []
 
   // =============================
-  // CHỌN ĐÁP ÁN
+  // ANSWER HANDLERS
   // =============================
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
     if (isMultiple) {
@@ -343,7 +341,7 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // MÀN HÌNH KẾT QUẢ
+  // RESULT SCREEN
   // =============================
   if (isSubmitted) {
     const percentage = assignment.total_score
@@ -397,7 +395,7 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // MÀN HÌNH LÀM BÀI
+  // DO ASSIGNMENT SCREEN
   // =============================
   return (
     <div className="min-h-screen">
@@ -435,109 +433,17 @@ export default function DoAssignmentPage() {
             )}
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                {question.question_text}
-              </CardTitle>
-              <CardDescription>
-                {isMultiple
-                  ? "Chọn tất cả đáp án đúng"
-                  : "Chọn một đáp án"} • {question.score} điểm
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent>
-              {isMultiple ? (
-                <div className="space-y-3">
-                  {question.options.map(option => (
-                    <div
-                      key={option.id}
-                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
-                    >
-                      <Checkbox
-                        id={`option-${option.id}`}
-                        checked={userAnswer.includes(option.id)}
-                        onCheckedChange={() =>
-                          handleAnswerChange(
-                            question.id,
-                            option.id,
-                            true
-                          )
-                        }
-                      />
-                      <Label
-                        htmlFor={`option-${option.id}`}
-                        className="flex-1 cursor-pointer"
-                      >
-                        {option.option_text}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <RadioGroup
-                  value={userAnswer[0]?.toString()}
-                  onValueChange={val =>
-                    handleAnswerChange(
-                      question.id,
-                      Number(val),
-                      false
-                    )
-                  }
-                >
-                  <div className="space-y-3">
-                    {question.options.map(option => (
-                      <div
-                        key={option.id}
-                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
-                      >
-                        <RadioGroupItem
-                          value={option.id.toString()}
-                          id={`option-${option.id}`}
-                        />
-                        <Label
-                          htmlFor={`option-${option.id}`}
-                          className="flex-1 cursor-pointer"
-                        >
-                          {option.option_text}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
-              )}
-            </CardContent>
-
-            <CardFooter className="flex justify-end">
-              {currentQuestion === questions.length - 1 && (
-                <Button
-                  onClick={() => submitAssignment("manual")}
-                  disabled={
-                    answeredCount !== questions.length ||
-                    isSubmitting
-                  }
-                >
-                  Nộp bài
-                </Button>
-              )}
-
-              {currentQuestion !== questions.length - 1 && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={handlePrevious}
-                    disabled={currentQuestion === 0}
-                  >
-                    Câu trước
-                  </Button>
-                  <Button onClick={handleNext}>
-                    Câu tiếp theo
-                  </Button>
-                </div>
-              )}
-            </CardFooter>
-          </Card>
+          <AssignmentDetail
+            questions={questions}
+            currentQuestion={currentQuestion}
+            userAnswers={userAnswers}
+            onAnswerChange={handleAnswerChange}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            onSubmit={() => submitAssignment("manual")}
+            answeredCount={answeredCount}
+            isSubmitting={isSubmitting}
+          />
         </div>
       </main>
     </div>
