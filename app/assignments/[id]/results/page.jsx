@@ -14,6 +14,23 @@ import { Header } from "@/components/header"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL
 
+// 🔹 Format ngày giờ VN
+function formatDateTime(dateStr) {
+  if (!dateStr) return "Chưa nộp"
+
+  const d = new Date(dateStr)
+
+  return (
+    d.toLocaleDateString("vi-VN") +
+    " " +
+    d.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    })
+  )
+}
+
 export default function AssignmentResultsPage() {
   const router = useRouter()
   const { id } = useParams()
@@ -123,8 +140,21 @@ export default function AssignmentResultsPage() {
       )
       : 0
 
+  // 🔹 Sort theo điểm DESC, nếu bằng điểm thì ai làm nhanh hơn đứng trên
   const sortedSubmissions = [...submissions].sort(
-    (a, b) => b.score - a.score
+    (a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+
+      const aTime =
+        new Date(a.submitted_at) -
+        new Date(a.started_at)
+
+      const bTime =
+        new Date(b.submitted_at) -
+        new Date(b.started_at)
+
+      return aTime - bTime
+    }
   )
 
   return (
@@ -159,8 +189,7 @@ export default function AssignmentResultsPage() {
           <CardHeader>
             <CardTitle>Danh sách học sinh</CardTitle>
             <CardDescription>
-              {submissions.length} học sinh đã hoàn
-              thành bài tập
+              {submissions.length} lượt làm bài tập
             </CardDescription>
           </CardHeader>
 
@@ -178,6 +207,20 @@ export default function AssignmentResultsPage() {
 
                 const isPassed = percentage >= 70
 
+                // 🔹 Tính thời gian làm
+                let durationText = "—"
+                if (s.started_at && s.submitted_at) {
+                  const diffMs =
+                    new Date(s.submitted_at) -
+                    new Date(s.started_at)
+
+                  const totalSeconds = Math.floor(diffMs / 1000)
+                  const minutes = Math.floor(totalSeconds / 60)
+                  const seconds = totalSeconds % 60
+
+                  durationText = `${minutes}p ${seconds}s`
+                }
+
                 return (
                   <div
                     key={s.id}
@@ -185,18 +228,28 @@ export default function AssignmentResultsPage() {
                   >
                     <div>
                       <p className="font-medium">
-                        {s.student_name}
+                        #{index + 1}. {s.student_name}
                       </p>
+
                       <p className="text-sm text-muted-foreground">
                         Lần nộp #{s.attempt_number}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        🏁 Nộp lúc:{" "}
+                        {formatDateTime(s.submitted_at)}
+                      </p>
+
+                      <p className="text-xs text-muted-foreground">
+                        ⏳ Thời gian làm: {durationText}
                       </p>
                     </div>
 
                     <div
                       className={
                         isPassed
-                          ? "text-primary"
-                          : "text-destructive"
+                          ? "text-primary font-semibold"
+                          : "text-destructive font-semibold"
                       }
                     >
                       {s.score}/{totalScore} (
