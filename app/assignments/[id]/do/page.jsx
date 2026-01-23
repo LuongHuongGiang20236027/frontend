@@ -27,6 +27,9 @@ const getToken = () => {
 }
 
 export default function DoAssignmentPage() {
+  const [remainingSeconds, setRemainingSeconds] = useState(null)
+  const [attemptId, setAttemptId] = useState(null)
+
   const router = useRouter()
   const params = useParams()
 
@@ -84,6 +87,40 @@ export default function DoAssignmentPage() {
         }
 
         setAssignment(mappedAssignment)
+        // 🔹 Start attempt
+        const startRes = await fetch(`${API_URL}/api/assignments/start`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            assignment_id: data.assignment.id
+          })
+        })
+
+        const startData = await startRes.json()
+
+        if (!startRes.ok) {
+          throw new Error(startData.error || "Không thể bắt đầu bài làm")
+        }
+
+        setAttemptId(startData.attempt.id)
+
+        // 🔹 Tính thời gian còn lại
+        if (data.assignment.time_limit) {
+          const startedAt = new Date(startData.attempt.started_at).getTime()
+          const limitMs = data.assignment.time_limit * 60 * 1000
+          const now = Date.now()
+
+          const remain = Math.max(
+            Math.floor((startedAt + limitMs - now) / 1000),
+            0
+          )
+
+          setRemainingSeconds(remain)
+        }
+
       } catch (err) {
         console.error(err)
         setError(err.message)
@@ -94,6 +131,30 @@ export default function DoAssignmentPage() {
 
     fetchAssignment()
   }, [params?.id, router])
+
+  useEffect(() => {
+    if (remainingSeconds === null) return
+
+    if (remainingSeconds <= 0) {
+      handleSubmit()
+      return
+    }
+
+    const timer = setInterval(() => {
+      setRemainingSeconds(prev => prev - 1)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [remainingSeconds])
+
+  // 🔹 Định dạng thời gian hiển thị
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, "0")}`
+  }
+
+
 
   // 🔹 Đếm số câu đã trả lời thật sự
   const answeredCount = useMemo(() => {
@@ -274,6 +335,16 @@ export default function DoAssignmentPage() {
             <div className="text-sm font-medium text-primary">
               {answeredCount} / {questions.length} đã trả lời
             </div>
+            {remainingSeconds !== null && (
+              <div
+                className={`text-lg font-bold ${remainingSeconds <= 60
+                  ? "text-destructive animate-pulse"
+                  : "text-primary"
+                  }`}
+              >
+                ⏳ {formatTime(remainingSeconds)}
+              </div>
+            )}
           </div>
 
           <Card>
