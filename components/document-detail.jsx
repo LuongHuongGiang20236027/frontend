@@ -93,15 +93,28 @@ export function DocumentDetail({ document: doc }) {
   }
 
   // xử lý tải tài liệu
-  const handleDownload = () => {
-    const a = document.createElement("a")
-    a.href = doc.file_url
-    a.download = `${doc.title || "document"}.pdf`
-    a.target = "_blank"
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(doc.file_url)
+      const blob = await res.blob()
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+
+      a.href = url
+      a.download = `${doc.title || "document"}.pdf`
+
+      document.body.appendChild(a)
+      a.click()
+
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      alert("Không thể tải file")
+      console.error(err)
+    }
   }
+
 
 
   return (
@@ -169,7 +182,9 @@ export function DocumentDetail({ document: doc }) {
               <CardContent>
                 <div className="aspect-4/3 rounded-lg border overflow-hidden">
                   <iframe
-                    src={`${doc.file_url}#toolbar=0`}
+                    src={`https://docs.google.com/gview?url=${encodeURIComponent(
+                      doc.file_url
+                    )}&embedded=true`}
                     title="Preview PDF"
                     className="w-full h-full"
                   />
