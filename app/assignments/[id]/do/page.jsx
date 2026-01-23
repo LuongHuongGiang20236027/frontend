@@ -54,7 +54,8 @@ export default function DoAssignmentPage() {
   // SUBMIT
   // =============================
   const submitAssignment = useCallback(async (reason = "manual") => {
-    if (submitLock.current) return
+    if (submitLock.current || isSubmitted) return
+
     submitLock.current = true
     setIsSubmitting(true)
 
@@ -71,8 +72,7 @@ export default function DoAssignmentPage() {
       const payload = {
         assignment_id: assignment.id,
         answers: answersPayload,
-        submitted_at: new Date().toISOString(),
-        submit_reason: reason
+        submit_reason: reason // ⬅️ backend tự set submitted_at = NOW()
       }
 
       const res = await fetch(`${API_URL}/api/assignments/submit`, {
@@ -95,7 +95,8 @@ export default function DoAssignmentPage() {
       setIsSubmitting(false)
       alert(err.message || "Có lỗi khi nộp bài")
     }
-  }, [assignment, userAnswers])
+  }, [assignment, userAnswers, isSubmitted])
+
 
   // =============================
   // LOAD ASSIGNMENT + START ATTEMPT
@@ -209,11 +210,12 @@ export default function DoAssignmentPage() {
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
-    if (timeUp || isSubmitted) return
+    if (timeUp || isSubmitted || submitLock.current) return
 
     setTimeUp(true)
     submitAssignment("timeup")
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
+
 
   // =============================
   // HELPERS
@@ -321,11 +323,11 @@ export default function DoAssignmentPage() {
             {remainingSeconds !== null && (
               <div
                 className={`text-lg font-bold ${remainingSeconds <= 60
-                    ? "text-destructive animate-pulse"
-                    : "text-primary"
+                  ? "text-destructive animate-pulse"
+                  : "text-primary"
                   }`}
               >
-                ⏳ {formatTime(remainingSeconds)}
+                {timeUp ? "⛔ HẾT GIỜ" : `⏳ ${formatTime(remainingSeconds)}`}
               </div>
             )}
           </div>
