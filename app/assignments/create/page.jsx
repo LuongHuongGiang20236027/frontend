@@ -210,6 +210,22 @@ export default function CreateAssignmentPage() {
     )
   }
 
+  const handleFileChange = (e, field) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Optional: check size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ảnh không được vượt quá 5MB")
+      return
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [field]: file,
+    }))
+  }
+
   // =========================
   // SUBMIT
   // =========================
@@ -471,23 +487,19 @@ export default function CreateAssignmentPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="thumbnail">Ảnh bìa</Label>
+                    <Label>Ảnh bìa</Label>
                     <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      className="pointer-events-auto"
-                      value={questions.score}
+                      type="file"
+                      accept="image/*"
                       onChange={(e) =>
-                        updateQuestion(
-                          questions.id,
-                          "score",
-                          Number.parseInt(
-                            e.target.value || "0"
-                          )
-                        )
+                        handleFileChange(e, "thumbnail")
                       }
                     />
+                    {formData.thumbnail && (
+                      <p className="text-sm text-muted-foreground">
+                        Đã chọn: {formData.thumbnail.name}
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
