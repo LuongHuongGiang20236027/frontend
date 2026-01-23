@@ -17,11 +17,23 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// =============================
+// TOKEN
+// =============================
 const getToken = () => {
   if (typeof window === "undefined") return null
-  return localStorage.getItem("token")
+  const user = localStorage.getItem("user")
+  if (!user) return null
+  try {
+    return JSON.parse(user).token
+  } catch {
+    return null
+  }
 }
 
+// =============================
+// HELPERS
+// =============================
 const shuffleArray = arr => {
   const copy = [...arr]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -43,6 +55,9 @@ export default function DoAssignmentPage() {
   const submitLock = useRef(false)
   const autoSubmitRef = useRef(false)
 
+  // 🔥 REF LƯU ĐÁP ÁN REALTIME (FIX 0 ĐIỂM AUTO SUBMIT)
+  const answersRef = useRef({})
+
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -56,7 +71,7 @@ export default function DoAssignmentPage() {
   // SUBMIT
   // =============================
   const submitAssignment = useCallback(
-    async (reason = "manual") => {
+    async (reason = "manual", keepalive = false) => {
       if (submitLock.current) return
       submitLock.current = true
       setIsSubmitting(true)
@@ -65,10 +80,10 @@ export default function DoAssignmentPage() {
         const token = getToken()
         if (!token || !assignment) return
 
-        const questions = assignment.questions || []
-        const answersPayload = questions.map(q => ({
+        const source = answersRef.current || {}
+        const answersPayload = assignment.questions.map(q => ({
           question_id: q.id,
-          answer_id: userAnswers[q.id] || []
+          answer_id: source[q.id] || []
         }))
 
         const payload = {
@@ -84,8 +99,12 @@ export default function DoAssignmentPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          keepalive
         })
+
+        // Nếu là unload thì không cần xử lý UI
+        if (keepalive) return
 
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
@@ -103,7 +122,7 @@ export default function DoAssignmentPage() {
         alert(err.message || "Có lỗi khi nộp bài")
       }
     },
-    [assignment, userAnswers]
+    [assignment]
   )
 
   // =============================
@@ -213,7 +232,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // TIME UP → AUTO SUBMIT + FORCE UI
+  // TIME UP → AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -225,7 +244,6 @@ export default function DoAssignmentPage() {
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
 
     submitAssignment("timeup").finally(() => {
-      // đảm bảo luôn chuyển sang màn hình kết quả
       setIsSubmitted(true)
     })
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
@@ -239,35 +257,16 @@ export default function DoAssignmentPage() {
       submitLock.current = true
 
       try {
-        const token = getToken()
-        if (!token) return
-
-        const questions = assignment.questions || []
-        const answersPayload = questions.map(q => ({
-          question_id: q.id,
-          answer_id: userAnswers[q.id] || []
-        }))
-
-        const payload = JSON.stringify({
-          assignment_id: assignment.id,
-          answers: answersPayload,
-          submitted_at: new Date().toISOString(),
-          submit_reason: "unload"
-        })
-
-        navigator.sendBeacon(
-          `${API_URL}/api/assignments/submit`,
-          new Blob([payload], { type: "application/json" })
-        )
+        submitAssignment("unload", true)
       } catch { }
     }
 
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [assignment, userAnswers, isSubmitted])
+  }, [assignment, isSubmitted, submitAssignment])
 
   // =============================
-  // FULLSCREEN LOCK + STATE
+  // FULLSCREEN LOCK
   // =============================
   useEffect(() => {
     if (!document.fullscreenElement && !isSubmitted) {
@@ -310,7 +309,7 @@ export default function DoAssignmentPage() {
   const questions = assignment.questions || []
 
   // =============================
-  // FLOATING BAR (ĐỒNG HỒ DUY NHẤT - MÀU ĐỎ)
+  // FLOATING BAR
   // =============================
   const FloatingBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur border-b">
@@ -336,22 +335,30 @@ export default function DoAssignmentPage() {
   // ANSWER HANDLERS
   // =============================
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
-    if (isMultiple) {
-      const current = userAnswers[questionId] || []
-      const newAnswers = current.includes(answerId)
-        ? current.filter(id => id !== answerId)
-        : [...current, answerId]
+    setUserAnswers(prev => {
+      let updated
 
-      setUserAnswers(prev => ({
-        ...prev,
-        [questionId]: newAnswers
-      }))
-    } else {
-      setUserAnswers(prev => ({
-        ...prev,
-        [questionId]: [answerId]
-      }))
-    }
+      if (isMultiple) {
+        const current = prev[questionId] || []
+        const newAnswers = current.includes(answerId)
+          ? current.filter(id => id !== answerId)
+          : [...current, answerId]
+
+        updated = {
+          ...prev,
+          [questionId]: newAnswers
+        }
+      } else {
+        updated = {
+          ...prev,
+          [questionId]: [answerId]
+        }
+      }
+
+      // 🔥 cập nhật ref realtime
+      answersRef.current = updated
+      return updated
+    })
   }
 
   const handleNext = () => {
@@ -463,6 +470,7 @@ export default function DoAssignmentPage() {
             onSubmit={() => submitAssignment("manual")}
             answeredCount={answeredCount}
             isSubmitting={isSubmitting}
+            showResult={false}
           />
         </div>
       </main>
