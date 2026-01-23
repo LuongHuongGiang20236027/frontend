@@ -108,8 +108,12 @@ export default function HomePage() {
 
   // ❤️ LIKE DOCUMENT (JWT)
   const handleLike = async (docId) => {
-    const token = requireLogin(router, "Vui lòng đăng nhập để thích tài liệu")
-    if (!token) return
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      alert("Vui lòng đăng nhập để thích tài liệu")
+      return
+    }
 
     const isLiked = likedDocs.has(docId)
 
@@ -170,15 +174,17 @@ export default function HomePage() {
       )
 
       alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.")
-      router.push("/login")
     }
   }
 
 
-  // ✅ LÀM BÀI = CHECK JWT
   const handleDoAssignment = (assignment) => {
-    const token = requireLogin(router, "Vui lòng đăng nhập để làm bài tập")
-    if (!token) return
+    const user = localStorage.getItem("user")
+
+    if (!user) {
+      alert("Vui lòng đăng nhập để làm bài")
+      return
+    }
 
     if (
       assignment.start_time &&
@@ -375,6 +381,7 @@ export default function HomePage() {
                         />
 
                         <button
+                          type="button"
                           onClick={() => handleLike(doc.id)}
                           className="absolute top-3 right-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow hover:scale-110 transition"
                         >
