@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { BookOpen, Clock, FileText } from "lucide-react"
+import { Clock, FileText } from "lucide-react"
 import { Header } from "@/components/header"
 import { Button } from "@/components/ui/button"
 import {
@@ -216,75 +216,6 @@ export default function ViewAssignmentPage() {
             </Card>
           </div>
 
-          {/* Danh sách câu hỏi PREVIEW - FIX UI */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Danh sách câu hỏi
-              </CardTitle>
-              <CardDescription>
-                Xem trước nội dung bài tập
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-6">
-              {assignment.questions.map((q, idx) => (
-                <div
-                  key={q.id}
-                  className="rounded-lg border p-6 bg-muted/30"
-                >
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">
-                      {idx + 1}
-                    </div>
-
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-2">
-                        {q.question_text}
-                      </h3>
-
-                      <div className="flex items-center gap-3 text-sm">
-                        <Badge
-                          variant={
-                            q.question_type === "single"
-                              ? "default"
-                              : "secondary"
-                          }
-                        >
-                          {q.question_type === "single"
-                            ? "Chọn 1 đáp án"
-                            : "Chọn nhiều đáp án"}
-                        </Badge>
-
-                        <span className="text-muted-foreground">•</span>
-
-                        <span className="font-medium text-primary">
-                          {q.score} điểm
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="ml-11 space-y-2">
-                    {q.options.map((opt, optIdx) => (
-                      <div
-                        key={opt.id}
-                        className="flex items-center gap-3 rounded-lg border bg-background p-3"
-                      >
-                        <span className="text-muted-foreground font-medium">
-                          {String.fromCharCode(65 + optIdx)}.
-                        </span>
-                        <span className="flex-1">
-                          {opt.option_text}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
 
           {userRole === "student" && (
             <Card className="mt-6">
