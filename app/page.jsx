@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { BookOpen, FileText, Heart, Sparkles, Users, Trophy } from "lucide-react"
+import { Clock, FileText, Heart, Sparkles, Users, Trophy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -16,6 +16,21 @@ import {
 import { Header } from "@/components/header"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+// ============================
+// HELPER FORMAT TIME
+// ============================
+const formatDateTime = (value) => {
+  if (!value) return "Không giới hạn"
+  const d = new Date(value)
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
 
 // 🔹 Trang chủ
 export default function HomePage() {

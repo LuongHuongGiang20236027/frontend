@@ -67,8 +67,8 @@ export default function AssignmentsPage() {
 
     // ⛔ Chặn nếu chưa đến giờ mở bài
     if (
-      assignment.start_time &&
-      new Date() < new Date(assignment.start_time)
+      assignmentId.start_time &&
+      new Date() < new Date(assignmentId.start_time)
     ) {
       alert("Bài tập chưa mở")
       return
@@ -76,8 +76,8 @@ export default function AssignmentsPage() {
 
     // ⛔ Chặn nếu đã hết hạn
     if (
-      assignment.end_time &&
-      new Date() > new Date(assignment.end_time)
+      assignmentId.end_time &&
+      new Date() > new Date(assignmentId.end_time)
     ) {
       alert("Bài tập đã hết hạn")
       return
