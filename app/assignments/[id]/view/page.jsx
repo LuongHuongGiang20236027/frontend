@@ -11,6 +11,17 @@ import { Badge } from "@/components/ui/badge"
 // 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+const formatDateTime = (value) => {
+  if (!value) return "Không giới hạn"
+  const d = new Date(value)
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
 export default function ViewAssignmentPage() {
   const router = useRouter()
   const params = useParams() // lấy ID từ URL
@@ -61,6 +72,17 @@ export default function ViewAssignmentPage() {
 
     if (!user) {
       alert("Vui lòng đăng nhập để làm bài tập")
+      return
+    }
+    // ⛔ Chưa mở
+    if (assignment.start_time && new Date() < new Date(assignment.start_time)) {
+      alert("Bài tập chưa mở")
+      return
+    }
+
+    // ⛔ Đã đóng
+    if (assignment.end_time && new Date() > new Date(assignment.end_time)) {
+      alert("Bài tập đã hết hạn")
       return
     }
 
@@ -120,6 +142,37 @@ export default function ViewAssignmentPage() {
                   <span className="text-muted-foreground">Ngày tạo:</span>
                   <span className="font-semibold">
                     {new Date(assignment.created_at).toLocaleDateString("vi-VN")}
+                  </span>
+                </div>
+
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Thời gian mở:</span>
+                  <span className="font-semibold">
+                    {formatDateTime(assignment.start_time)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Thời gian đóng:</span>
+                  <span className="font-semibold">
+                    {formatDateTime(assignment.end_time)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Giới hạn thời gian:</span>
+                  <span className="font-semibold">
+                    {assignment.time_limit
+                      ? `${assignment.time_limit} phút`
+                      : "Không giới hạn"}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Số lần làm tối đa:</span>
+                  <span className="font-semibold">
+                    {assignment.max_attempts || "Không giới hạn"}
                   </span>
                 </div>
               </CardContent>
