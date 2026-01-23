@@ -259,6 +259,31 @@ export default function HomePage() {
                         </span>
                       </div>
 
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>
+                          {formatDateTime(
+                            assignment.start_time
+                          )}{" "}
+                          →{" "}
+                          {formatDateTime(
+                            assignment.end_time
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>
+                          ⏱ {assignment.time_limit
+                            ? `${assignment.time_limit} phút`
+                            : "Không giới hạn"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Repeat className="h-3 w-3" />
+                          {assignment.max_attempts || 1} lượt
+                        </span>
+                      </div>
+
                       <p className="mt-2 text-xs text-muted-foreground">
                         Tạo bởi {assignment.author_name}
                       </p>
