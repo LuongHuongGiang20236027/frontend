@@ -116,6 +116,21 @@ export default function AssignmentResultPage() {
             <p className="mt-2 text-lg text-muted-foreground">
               {percentage}% điểm
             </p>
+            <p>
+              🗓 Ngày làm:{" "}
+              {new Date(attempt.started_at).toLocaleDateString()}
+            </p>
+            <p>
+              ⏰ Bắt đầu:{" "}
+              {new Date(attempt.started_at).toLocaleTimeString()}
+            </p>
+            <p>
+              🏁 Nộp bài:{" "}
+              {new Date(attempt.submitted_at).toLocaleTimeString()}
+            </p>
+            <p className="font-medium text-primary">
+              ⏳ Thời gian làm: {attempt.duration_minutes} phút
+            </p>
           </CardContent>
         </Card>
 
