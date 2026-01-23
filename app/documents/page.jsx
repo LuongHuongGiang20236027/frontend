@@ -17,6 +17,15 @@ import { Header } from "@/components/header"
 // 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return ""
+  return new Date(dateStr).toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+}
+
 // 🔹 Helper lấy JWT token
 const getToken = () => {
   if (typeof window === "undefined") return null
@@ -219,6 +228,9 @@ export default function DocumentsPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Tạo bởi {doc.author_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Ngày tạo: {formatDate(doc.created_at)}
                       </p>
                     </CardContent>
 

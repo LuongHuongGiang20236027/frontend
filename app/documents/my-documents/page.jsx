@@ -17,6 +17,15 @@ import { Header } from "@/components/header"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return ""
+  return new Date(dateStr).toLocaleDateString("vi-VN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+}
+
 export default function MyDocumentsPage() {
   const router = useRouter()
 
@@ -229,6 +238,12 @@ export default function MyDocumentsPage() {
                     <CardContent>
                       <p className="text-sm text-muted-foreground">
                         {doc.like_count} lượt thích
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Tạo bởi {doc.author_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Ngày tạo: {formatDate(doc.created_at)}
                       </p>
                     </CardContent>
 

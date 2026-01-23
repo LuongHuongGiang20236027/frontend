@@ -387,6 +387,12 @@ export default function HomePage() {
                         <p className="text-sm text-muted-foreground">
                           {doc.like_count} lượt thích
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          Tạo bởi {doc.author_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Ngày tạo: {formatDate(doc.created_at)}
+                        </p>
                       </CardContent>
 
                       <CardFooter>
