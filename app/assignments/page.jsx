@@ -148,7 +148,7 @@ export default function AssignmentsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
                         {formatDateTime(
@@ -161,7 +161,7 @@ export default function AssignmentsPage() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>
                         ⏱ {assignment.time_limit
                           ? `${assignment.time_limit} phút`
