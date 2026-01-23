@@ -17,18 +17,9 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// =============================
-// FIX TOKEN (ĐÚNG KEY localStorage)
-// =============================
 const getToken = () => {
   if (typeof window === "undefined") return null
-  const user = localStorage.getItem("user")
-  if (!user) return null
-  try {
-    return JSON.parse(user).token
-  } catch {
-    return null
-  }
+  return localStorage.getItem("token")
 }
 
 const shuffleArray = arr => {
@@ -222,7 +213,7 @@ export default function DoAssignmentPage() {
   }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // TIME UP → AUTO SUBMIT
+  // TIME UP → AUTO SUBMIT + FORCE UI
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -233,11 +224,14 @@ export default function DoAssignmentPage() {
 
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
 
-    submitAssignment("timeup")
+    submitAssignment("timeup").finally(() => {
+      // đảm bảo luôn chuyển sang màn hình kết quả
+      setIsSubmitted(true)
+    })
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
 
   // =============================
-  // CLOSE TAB / RELOAD (FETCH + KEEPALIVE)
+  // CLOSE TAB / RELOAD
   // =============================
   useEffect(() => {
     const handler = () => {
@@ -261,15 +255,10 @@ export default function DoAssignmentPage() {
           submit_reason: "unload"
         })
 
-        fetch(`${API_URL}/api/assignments/submit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: payload,
-          keepalive: true // 🔥 gửi được khi tab đang đóng
-        })
+        navigator.sendBeacon(
+          `${API_URL}/api/assignments/submit`,
+          new Blob([payload], { type: "application/json" })
+        )
       } catch { }
     }
 
@@ -278,7 +267,7 @@ export default function DoAssignmentPage() {
   }, [assignment, userAnswers, isSubmitted])
 
   // =============================
-  // FULLSCREEN LOCK
+  // FULLSCREEN LOCK + STATE
   // =============================
   useEffect(() => {
     if (!document.fullscreenElement && !isSubmitted) {
@@ -321,14 +310,13 @@ export default function DoAssignmentPage() {
   const questions = assignment.questions || []
 
   // =============================
-  // FLOATING BAR
+  // FLOATING BAR (ĐỒNG HỒ DUY NHẤT - MÀU ĐỎ)
   // =============================
   const FloatingBar = () => (
     <div className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur border-b">
       <div className="mx-auto max-w-3xl px-4 py-2 flex items-center justify-between text-sm font-medium">
         <div className="text-destructive animate-pulse font-bold">
-          ⏳{" "}
-          {remainingSeconds !== null
+          ⏳ {remainingSeconds !== null
             ? formatTime(remainingSeconds)
             : "--:--"}
         </div>
@@ -399,9 +387,7 @@ export default function DoAssignmentPage() {
                   <XCircle className="h-12 w-12 text-destructive" />
                 )}
               </div>
-              <CardTitle className="text-3xl">
-                Hoàn thành bài tập!
-              </CardTitle>
+              <CardTitle className="text-3xl">Hoàn thành bài tập!</CardTitle>
               <CardDescription>Kết quả của bạn</CardDescription>
             </CardHeader>
 
@@ -456,8 +442,7 @@ export default function DoAssignmentPage() {
                 <div
                   className="h-full bg-primary transition-all"
                   style={{
-                    width: `${((currentQuestion + 1) / questions.length) * 100
-                      }%`
+                    width: `${((currentQuestion + 1) / questions.length) * 100}%`
                   }}
                 />
               </div>
