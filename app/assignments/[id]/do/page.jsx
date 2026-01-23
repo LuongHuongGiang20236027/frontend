@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+const ATTEMPT_KEY = "assignment_attempt_id"
 
 const getToken = () => {
   if (typeof window === "undefined") return null
@@ -40,6 +41,7 @@ export default function DoAssignmentPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const submitLock = useRef(false)
+  const timerRef = useRef(null)
 
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -49,6 +51,7 @@ export default function DoAssignmentPage() {
   const [userAnswers, setUserAnswers] = useState({})
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [score, setScore] = useState(0)
+  const [attemptId, setAttemptId] = useState(null)
 
   // =============================
   // SUBMIT
@@ -63,17 +66,10 @@ export default function DoAssignmentPage() {
       const token = getToken()
       if (!token || !assignment) return
 
-      const questions = assignment.questions || []
-      const answersPayload = questions.map(q => ({
+      const answersPayload = assignment.questions.map(q => ({
         question_id: q.id,
         answer_id: userAnswers[q.id] || []
       }))
-
-      const payload = {
-        assignment_id: assignment.id,
-        answers: answersPayload,
-        submit_reason: reason // ⬅️ backend tự set submitted_at = NOW()
-      }
 
       const res = await fetch(`${API_URL}/api/assignments/submit`, {
         method: "POST",
@@ -81,11 +77,19 @@ export default function DoAssignmentPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          assignment_id: assignment.id,
+          attempt_id: attemptId,
+          answers: answersPayload,
+          submit_reason: reason
+        })
       })
 
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Nộp bài thất bại")
+
+      if (timerRef.current) clearInterval(timerRef.current)
+      localStorage.removeItem(ATTEMPT_KEY)
 
       setScore(Number(data.score || 0))
       setIsSubmitted(true)
@@ -95,11 +99,10 @@ export default function DoAssignmentPage() {
       setIsSubmitting(false)
       alert(err.message || "Có lỗi khi nộp bài")
     }
-  }, [assignment, userAnswers, isSubmitted])
-
+  }, [assignment, userAnswers, isSubmitted, attemptId])
 
   // =============================
-  // LOAD ASSIGNMENT + START ATTEMPT
+  // LOAD + START / RESUME ATTEMPT
   // =============================
   useEffect(() => {
     if (!params?.id || !API_URL) return
@@ -112,10 +115,9 @@ export default function DoAssignmentPage() {
           return
         }
 
+        // 1. Load assignment
         const res = await fetch(`${API_URL}/api/assignments/${params.id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+          headers: { Authorization: `Bearer ${token}` }
         })
 
         if (!res.ok) {
@@ -145,26 +147,50 @@ export default function DoAssignmentPage() {
 
         setAssignment(mappedAssignment)
 
-        // START ATTEMPT
-        const startRes = await fetch(`${API_URL}/api/assignments/start`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            assignment_id: data.assignment.id
-          })
-        })
+        // 2. Resume / Start attempt
+        let savedAttempt = localStorage.getItem(ATTEMPT_KEY)
+        let attempt
 
-        const startData = await startRes.json()
-        if (!startRes.ok) {
-          throw new Error(startData.error || "Không thể bắt đầu bài làm")
+        if (savedAttempt) {
+          const resumeRes = await fetch(
+            `${API_URL}/api/assignments/attempt/${savedAttempt}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+          const resumeData = await resumeRes.json()
+
+          if (resumeRes.ok && !resumeData.attempt.is_submitted) {
+            attempt = resumeData.attempt
+          } else {
+            localStorage.removeItem(ATTEMPT_KEY)
+          }
         }
 
-        // TIMER
+        if (!attempt) {
+          const startRes = await fetch(`${API_URL}/api/assignments/start`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              assignment_id: data.assignment.id
+            })
+          })
+
+          const startData = await startRes.json()
+          if (!startRes.ok) {
+            throw new Error(startData.error || "Không thể bắt đầu bài làm")
+          }
+
+          attempt = startData.attempt
+          localStorage.setItem(ATTEMPT_KEY, attempt.id)
+        }
+
+        setAttemptId(attempt.id)
+
+        // 3. TIMER
         if (data.assignment.time_limit) {
-          const startedAt = new Date(startData.attempt.started_at).getTime()
+          const startedAt = new Date(attempt.started_at).getTime()
           const limitMs = data.assignment.time_limit * 60 * 1000
 
           const remain = Math.max(
@@ -186,27 +212,26 @@ export default function DoAssignmentPage() {
   }, [params?.id, router])
 
   // =============================
-  // TIMER
+  // TIMER (ONE INTERVAL ONLY)
   // =============================
   useEffect(() => {
-    if (remainingSeconds === null) return
-    if (isSubmitted || timeUp) return
+    if (remainingSeconds === null || isSubmitted || timeUp) return
 
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setRemainingSeconds(prev => {
         if (prev <= 1) {
-          clearInterval(timer)
+          clearInterval(timerRef.current)
           return 0
         }
         return prev - 1
       })
     }, 1000)
 
-    return () => clearInterval(timer)
-  }, [remainingSeconds, isSubmitted, timeUp])
+    return () => clearInterval(timerRef.current)
+  }, [isSubmitted, timeUp])
 
   // =============================
-  // HẾT GIỜ → AUTO SUBMIT
+  // AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
@@ -215,7 +240,6 @@ export default function DoAssignmentPage() {
     setTimeUp(true)
     submitAssignment("timeup")
   }, [remainingSeconds, timeUp, isSubmitted, submitAssignment])
-
 
   // =============================
   // HELPERS
@@ -323,8 +347,8 @@ export default function DoAssignmentPage() {
             {remainingSeconds !== null && (
               <div
                 className={`text-lg font-bold ${remainingSeconds <= 60
-                  ? "text-destructive animate-pulse"
-                  : "text-primary"
+                    ? "text-destructive animate-pulse"
+                    : "text-primary"
                   }`}
               >
                 {timeUp ? "⛔ HẾT GIỜ" : `⏳ ${formatTime(remainingSeconds)}`}
