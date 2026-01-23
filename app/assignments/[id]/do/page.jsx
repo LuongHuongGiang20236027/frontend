@@ -17,16 +17,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
-// 🔹 API Base URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// 🔹 Helper lấy JWT token
 const getToken = () => {
   if (typeof window === "undefined") return null
   return localStorage.getItem("token")
 }
 
-// 🔀 Shuffle array
 const shuffleArray = arr => {
   const copy = [...arr]
   for (let i = copy.length - 1; i > 0; i--) {
@@ -37,13 +34,14 @@ const shuffleArray = arr => {
 }
 
 export default function DoAssignmentPage() {
-  const [remainingSeconds, setRemainingSeconds] = useState(null)
-  const [autoSubmitted, setAutoSubmitted] = useState(false)
-
-  const submitLock = useRef(false)
-
   const router = useRouter()
   const params = useParams()
+
+  const [remainingSeconds, setRemainingSeconds] = useState(null)
+  const [timeUp, setTimeUp] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const submitLock = useRef(false)
 
   const [assignment, setAssignment] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -55,15 +53,15 @@ export default function DoAssignmentPage() {
   const [score, setScore] = useState(0)
 
   // =============================
-  // 🔹 Submit bài (chống submit trùng)
+  // SUBMIT CHUẨN
   // =============================
   const handleSubmit = useCallback(async () => {
     if (submitLock.current) return
     submitLock.current = true
+    setIsSubmitting(true)
 
     try {
       const token = getToken()
-
       if (!token) {
         alert("Vui lòng đăng nhập để nộp bài")
         router.push("/login")
@@ -73,7 +71,6 @@ export default function DoAssignmentPage() {
       if (!assignment) return
 
       const questions = assignment.questions || []
-
       const answersPayload = questions.map(q => ({
         question_id: q.id,
         answer_id: userAnswers[q.id] || []
@@ -99,15 +96,21 @@ export default function DoAssignmentPage() {
 
       setScore(Number(data.score || 0))
       setIsSubmitted(true)
+
+      // Thoát fullscreen khi xong
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { })
+      }
     } catch (err) {
       console.error(err)
       submitLock.current = false
+      setIsSubmitting(false)
       alert(err.message || "Có lỗi khi nộp bài")
     }
   }, [assignment, userAnswers, router])
 
   // =============================
-  // 🔹 Load assignment + start attempt
+  // LOAD ASSIGNMENT
   // =============================
   useEffect(() => {
     if (!params?.id || !API_URL) return
@@ -115,7 +118,6 @@ export default function DoAssignmentPage() {
     const fetchAssignment = async () => {
       try {
         const token = getToken()
-
         if (!token) {
           router.push("/login")
           return
@@ -134,7 +136,6 @@ export default function DoAssignmentPage() {
 
         const data = await res.json()
 
-        // 🔀 Random câu + đáp án
         const mappedAssignment = {
           ...data.assignment,
           questions: shuffleArray(
@@ -155,7 +156,7 @@ export default function DoAssignmentPage() {
 
         setAssignment(mappedAssignment)
 
-        // 🔹 Start attempt
+        // START ATTEMPT
         const startRes = await fetch(`${API_URL}/api/assignments/start`, {
           method: "POST",
           headers: {
@@ -168,12 +169,10 @@ export default function DoAssignmentPage() {
         })
 
         const startData = await startRes.json()
-
         if (!startRes.ok) {
           throw new Error(startData.error || "Không thể bắt đầu bài làm")
         }
 
-        // 🔹 Tính thời gian còn lại (chuẩn server)
         if (data.assignment.time_limit) {
           const startedAt = new Date(startData.attempt.started_at).getTime()
           const limitMs = data.assignment.time_limit * 60 * 1000
@@ -197,11 +196,11 @@ export default function DoAssignmentPage() {
   }, [params?.id, router])
 
   // =============================
-  // 🔹 Timer đếm ngược
+  // TIMER
   // =============================
   useEffect(() => {
     if (remainingSeconds === null) return
-    if (autoSubmitted || isSubmitted) return
+    if (isSubmitted || timeUp) return
     if (remainingSeconds <= 0) return
 
     const timer = setInterval(() => {
@@ -209,69 +208,71 @@ export default function DoAssignmentPage() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [remainingSeconds, autoSubmitted, isSubmitted])
+  }, [remainingSeconds, isSubmitted, timeUp])
 
   // =============================
-  // 🔹 Auto submit khi hết giờ
+  // HẾT GIỜ → AUTO SUBMIT
   // =============================
   useEffect(() => {
     if (remainingSeconds !== 0) return
-    if (autoSubmitted || isSubmitted) return
+    if (timeUp || isSubmitted) return
 
     console.log("⏰ HẾT GIỜ → AUTO SUBMIT")
-    setAutoSubmitted(true)
+    setTimeUp(true)
     handleSubmit()
-  }, [remainingSeconds, autoSubmitted, isSubmitted, handleSubmit])
+  }, [remainingSeconds, timeUp, isSubmitted, handleSubmit])
 
   // =============================
-  // 🔒 Chống refresh / đóng tab
+  // CHẶN ĐÓNG TAB / RELOAD
   // =============================
   useEffect(() => {
     const handler = e => {
-      e.preventDefault()
-      e.returnValue = ""
+      if (!isSubmitting && !timeUp && !isSubmitted) {
+        e.preventDefault()
+        e.returnValue = ""
+      }
     }
 
     window.addEventListener("beforeunload", handler)
     return () => window.removeEventListener("beforeunload", handler)
-  }, [])
+  }, [isSubmitting, timeUp, isSubmitted])
 
   // =============================
-  // 🔀 Phát hiện chuyển tab
+  // FULLSCREEN
   // =============================
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.hidden && !autoSubmitted && !isSubmitted) {
-        alert("⚠ Không được chuyển tab khi đang làm bài!")
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibility)
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibility)
-  }, [autoSubmitted, isSubmitted])
-
-  // =============================
-  // 🖥 Fullscreen bắt buộc
-  // =============================
-  useEffect(() => {
-    if (!document.fullscreenElement) {
+    if (!document.fullscreenElement && !isSubmitted) {
       document.documentElement.requestFullscreen().catch(() => { })
     }
 
     const onFullScreenChange = () => {
-      if (!document.fullscreenElement && !autoSubmitted && !isSubmitted) {
-        alert("⚠ Không được thoát chế độ toàn màn hình khi đang làm bài!")
+      if (
+        !document.fullscreenElement &&
+        !timeUp &&
+        !isSubmitted
+      ) {
+        alert("⚠ Thoát fullscreen sẽ nộp bài!")
+        handleSubmit()
       }
     }
 
     document.addEventListener("fullscreenchange", onFullScreenChange)
     return () =>
       document.removeEventListener("fullscreenchange", onFullScreenChange)
-  }, [autoSubmitted, isSubmitted])
+  }, [timeUp, isSubmitted, handleSubmit])
 
   // =============================
-  // 🔹 Helpers
+  // THOÁT CHỦ ĐỘNG
+  // =============================
+  const handleExit = () => {
+    const ok = confirm("Thoát sẽ nộp bài ngay. Bạn chắc không?")
+    if (ok) {
+      handleSubmit()
+    }
+  }
+
+  // =============================
+  // HELPERS
   // =============================
   const formatTime = seconds => {
     const m = Math.floor(seconds / 60)
@@ -293,7 +294,7 @@ export default function DoAssignmentPage() {
   const userAnswer = userAnswers[question.id] || []
 
   // =============================
-  // 🔹 Chọn đáp án
+  // CHỌN ĐÁP ÁN
   // =============================
   const handleAnswerChange = (questionId, answerId, isMultiple) => {
     if (isMultiple) {
@@ -327,7 +328,7 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // 🔹 Màn hình kết quả
+  // MÀN HÌNH KẾT QUẢ
   // =============================
   if (isSubmitted) {
     const percentage = assignment.total_score
@@ -358,7 +359,7 @@ export default function DoAssignmentPage() {
               <p className="mt-2 text-lg text-muted-foreground">
                 {percentage}% điểm
               </p>
-              {autoSubmitted && (
+              {timeUp && (
                 <p className="text-sm text-muted-foreground animate-pulse">
                   ⏳ Bài đã được tự động nộp khi hết giờ
                 </p>
@@ -381,7 +382,7 @@ export default function DoAssignmentPage() {
   }
 
   // =============================
-  // 🔹 Màn hình làm bài
+  // MÀN HÌNH LÀM BÀI
   // =============================
   return (
     <div className="min-h-screen">
@@ -421,7 +422,7 @@ export default function DoAssignmentPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-balance">
+              <CardTitle className="text-2xl">
                 {question.question_text}
               </CardTitle>
               <CardDescription>
@@ -437,7 +438,7 @@ export default function DoAssignmentPage() {
                   {question.options.map(option => (
                     <div
                       key={option.id}
-                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                      className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
                     >
                       <Checkbox
                         id={`option-${option.id}`}
@@ -474,7 +475,7 @@ export default function DoAssignmentPage() {
                     {question.options.map(option => (
                       <div
                         key={option.id}
-                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                        className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50"
                       >
                         <RadioGroupItem
                           value={option.id.toString()}
@@ -495,25 +496,37 @@ export default function DoAssignmentPage() {
 
             <CardFooter className="flex justify-between">
               <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentQuestion === 0}
+                variant="destructive"
+                onClick={handleExit}
               >
-                Câu trước
+                Thoát bài
               </Button>
 
-              {currentQuestion === questions.length - 1 ? (
+              <div className="flex gap-2">
                 <Button
-                  onClick={handleSubmit}
-                  disabled={answeredCount !== questions.length || autoSubmitted}
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={currentQuestion === 0}
                 >
-                  Nộp bài
+                  Câu trước
                 </Button>
-              ) : (
-                <Button onClick={handleNext}>
-                  Câu tiếp theo
-                </Button>
-              )}
+
+                {currentQuestion === questions.length - 1 ? (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={
+                      answeredCount !== questions.length ||
+                      isSubmitting
+                    }
+                  >
+                    Nộp bài
+                  </Button>
+                ) : (
+                  <Button onClick={handleNext}>
+                    Câu tiếp theo
+                  </Button>
+                )}
+              </div>
             </CardFooter>
           </Card>
         </div>
