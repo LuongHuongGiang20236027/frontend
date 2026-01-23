@@ -17,6 +17,21 @@ import { useRouter } from "next/navigation"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+// ============================
+// HELPER FORMAT TIME
+// ============================
+const formatDateTime = (value) => {
+  if (!value) return "Không giới hạn"
+  const d = new Date(value)
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  })
+}
+
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -49,6 +64,25 @@ export default function AssignmentsPage() {
       router.push("/login")
       return
     }
+
+    // ⛔ Chặn nếu chưa đến giờ mở bài
+    if (
+      assignment.start_time &&
+      new Date() < new Date(assignment.start_time)
+    ) {
+      alert("Bài tập chưa mở")
+      return
+    }
+
+    // ⛔ Chặn nếu đã hết hạn
+    if (
+      assignment.end_time &&
+      new Date() > new Date(assignment.end_time)
+    ) {
+      alert("Bài tập đã hết hạn")
+      return
+    }
+
 
     router.push(`/assignments/${assignmentId}/do`)
   }
@@ -111,6 +145,31 @@ export default function AssignmentsPage() {
                       <span className="text-muted-foreground">•</span>
                       <span className="font-medium text-primary">
                         {assignment.total_score} điểm
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>
+                        {formatDateTime(
+                          assignment.start_time
+                        )}{" "}
+                        →{" "}
+                        {formatDateTime(
+                          assignment.end_time
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        ⏱ {assignment.time_limit
+                          ? `${assignment.time_limit} phút`
+                          : "Không giới hạn"}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Repeat className="h-3 w-3" />
+                        {assignment.max_attempts || 1} lượt
                       </span>
                     </div>
 
