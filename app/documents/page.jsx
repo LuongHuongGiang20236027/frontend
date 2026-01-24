@@ -36,6 +36,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [likedDocs, setLikedDocs] = useState(new Set())
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     init()
@@ -69,6 +70,34 @@ export default function DocumentsPage() {
       console.error(err)
     }
   }
+
+  // 🔹 Tìm kiếm tài liệu
+  const searchDocuments = async (q) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/documents/search?q=${encodeURIComponent(q)}`
+      )
+      const data = await res.json()
+      setDocuments(data.documents || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 🔹 Xử lý thay đổi ô tìm kiếm
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchTerm.trim()) {
+        searchDocuments(searchTerm)
+      } else {
+        fetchDocuments()
+      }
+    }, 300)
+
+    return () => clearTimeout(t)
+  }, [searchTerm])
+
+
 
   // 🔹 Lấy danh sách đã like
   const fetchLikedDocuments = async (token) => {
@@ -165,18 +194,31 @@ export default function DocumentsPage() {
       <main>
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/20">
-                <FileText className="h-6 w-6" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/20">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <h1 className="text-4xl font-bold">Tất cả tài liệu</h1>
               </div>
-              <h1 className="text-4xl font-bold">Tất cả tài liệu</h1>
+
+              {/* 🔍 Search box */}
+              <input
+                type="text"
+                placeholder="Tìm tài liệu..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
+
             {!isLoading && (
               <p className="text-lg text-muted-foreground">
                 {documents.length} tài liệu
               </p>
             )}
           </div>
+
 
           {isLoading ? (
             <p>Đang tải dữ liệu...</p>
