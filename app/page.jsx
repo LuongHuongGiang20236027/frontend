@@ -17,9 +17,7 @@ import { Header } from "@/components/header"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// ============================
-// HELPER FORMAT TIME
-// ============================
+// 🔹 Format date time
 const formatDateTime = (value) => {
   if (!value) return "Không giới hạn"
   const d = new Date(value)

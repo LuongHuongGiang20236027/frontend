@@ -17,9 +17,7 @@ import { useRouter } from "next/navigation"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// ============================
-// HELPER FORMAT TIME
-// ============================
+// 🔹 Format date time
 const formatDateTime = (value) => {
   if (!value) return "Không giới hạn"
   const d = new Date(value)
@@ -35,12 +33,14 @@ const formatDateTime = (value) => {
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
 
   useEffect(() => {
     fetchAssignments()
   }, [])
 
+  // 🔹 Lấy tất cả bài tập
   const fetchAssignments = async () => {
     try {
       const res = await fetch(`${API_URL}/api/assignments`)
@@ -55,6 +55,32 @@ export default function AssignmentsPage() {
     }
   }
 
+  // 🔹 Tìm kiếm bài tập
+  const searchAssignments = async (q) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/assignments/search?q=${encodeURIComponent(q)}`
+      )
+      const data = await res.json()
+      setAssignments(data.assignments || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 🔹 Debounce search giống Documents
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchTerm.trim()) {
+        searchAssignments(searchTerm)
+      } else {
+        fetchAssignments()
+      }
+    }, 300)
+
+    return () => clearTimeout(t)
+  }, [searchTerm])
+
   // ✅ CHECK LOGIN = JWT
   const handleDoAssignment = (assignmentId) => {
     const token = localStorage.getItem("token")
@@ -65,10 +91,12 @@ export default function AssignmentsPage() {
       return
     }
 
+    const assignment = assignments.find(a => a.id === assignmentId)
+
     // ⛔ Chặn nếu chưa đến giờ mở bài
     if (
-      assignmentId.start_time &&
-      new Date() < new Date(assignmentId.start_time)
+      assignment?.start_time &&
+      new Date() < new Date(assignment.start_time)
     ) {
       alert("Bài tập chưa mở")
       return
@@ -76,13 +104,12 @@ export default function AssignmentsPage() {
 
     // ⛔ Chặn nếu đã hết hạn
     if (
-      assignmentId.end_time &&
-      new Date() > new Date(assignmentId.end_time)
+      assignment?.end_time &&
+      new Date() > new Date(assignment.end_time)
     ) {
       alert("Bài tập đã hết hạn")
       return
     }
-
 
     router.push(`/assignments/${assignmentId}/do`)
   }
@@ -93,15 +120,27 @@ export default function AssignmentsPage() {
       <main>
         <div className="container mx-auto px-4 py-8">
           <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <BookOpen className="h-6 w-6 text-primary" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
+                  <BookOpen className="h-6 w-6 text-primary" />
+                </div>
+                <h1 className="text-4xl font-bold">Tất cả bài tập</h1>
               </div>
-              <h1 className="text-4xl font-bold">Tất cả bài tập</h1>
+
+              {/* 🔍 Search box */}
+              <input
+                type="text"
+                placeholder="Tìm bài tập..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-64 rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
             </div>
+
             {!isLoading && (
               <p className="text-lg text-muted-foreground">
-                Khám phá và thử sức với {assignments.length} bài tập đa dạng
+                {assignments.length} bài tập
               </p>
             )}
           </div>
@@ -109,7 +148,7 @@ export default function AssignmentsPage() {
           {isLoading ? (
             <p>Đang tải dữ liệu...</p>
           ) : assignments.length === 0 ? (
-            <p className="text-muted-foreground">Chưa có bài tập nào</p>
+            <p className="text-muted-foreground">Không tìm thấy bài tập</p>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {assignments.map((assignment) => (
@@ -119,10 +158,7 @@ export default function AssignmentsPage() {
                 >
                   <div className="relative aspect-video overflow-hidden bg-muted">
                     <img
-                      src={
-                        assignment.thumbnail || "/placeholder.svg"
-
-                      }
+                      src={assignment.thumbnail || "/placeholder.svg"}
                       alt={assignment.title}
                       className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -151,19 +187,15 @@ export default function AssignmentsPage() {
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Clock className="h-4 w-4" />
                       <span>
-                        {formatDateTime(
-                          assignment.start_time
-                        )}{" "}
-                        →{" "}
-                        {formatDateTime(
-                          assignment.end_time
-                        )}
+                        {formatDateTime(assignment.start_time)} →{" "}
+                        {formatDateTime(assignment.end_time)}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                       <span>
-                        ⏱ {assignment.time_limit
+                        ⏱{" "}
+                        {assignment.time_limit
                           ? `${assignment.time_limit} phút`
                           : "Không giới hạn"}
                       </span>

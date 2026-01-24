@@ -57,7 +57,7 @@ export default function CreateAssignmentPage() {
     if (!token) router.push("/login")
   }, [router])
 
-  // Guard nếu quên set env trên Vercel
+  // 🔹 Kiểm tra cấu hình API_URL
   useEffect(() => {
     if (!API_URL) {
       console.error("❌ NEXT_PUBLIC_API_URL chưa được set trên Vercel")
@@ -70,16 +70,13 @@ export default function CreateAssignmentPage() {
     0
   )
 
-  // =========================
-  // QUESTION HELPERS
-  // =========================
-
+  //Question handlers
   const addQuestion = () => {
     const newId =
       questions.length > 0
         ? Math.max(...questions.map((q) => q.id)) + 1
         : 1
-
+    // Thêm câu hỏi mới với 2 đáp án trống
     setQuestions([
       ...questions,
       {
@@ -226,10 +223,8 @@ export default function CreateAssignmentPage() {
     }))
   }
 
-  // =========================
-  // SUBMIT
-  // =========================
 
+  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (
@@ -336,7 +331,7 @@ export default function CreateAssignmentPage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          body: fd, // ❗ KHÔNG set Content-Type
+          body: fd,
         }
       )
 
