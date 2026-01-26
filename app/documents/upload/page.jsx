@@ -50,7 +50,7 @@ export default function UploadDocumentPage() {
     }
 
     if (!formData.title || !formData.file) {
-      alert("Vui lòng nhập tiêu đề và chọn file PDF")
+      alert("Vui lòng nhập tiêu đề và chọn file PDF hoặc VIDEO")
       return
     }
 
@@ -153,7 +153,7 @@ export default function UploadDocumentPage() {
                     </Label>
                     <Input
                       type="file"
-                      accept=".pdf"
+                      accept=".pdf,video/*"
                       onChange={(e) => handleFileChange(e, "file")}
                       required
                     />

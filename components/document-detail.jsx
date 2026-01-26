@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Heart, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,6 +18,15 @@ export function DocumentDetail({ document: doc }) {
   const [likesCount, setLikesCount] = useState(
     Number(doc.like_count) || 0
   )
+
+  // Detect video an toàn theo đuôi file hoặc type
+  const isVideo = useMemo(() => {
+    if (!doc?.file_url) return false
+    return (
+      doc.file_type === "video" ||
+      /\.(mp4|webm|ogg|mov|m4v)$/i.test(doc.file_url)
+    )
+  }, [doc])
 
   useEffect(() => {
     const initLikeStatus = async () => {
@@ -63,6 +72,7 @@ export function DocumentDetail({ document: doc }) {
 
     const isLiked = liked
 
+    // Optimistic update
     setLiked(!isLiked)
     setLikesCount((prev) => (isLiked ? prev - 1 : prev + 1))
 
@@ -85,6 +95,7 @@ export function DocumentDetail({ document: doc }) {
     } catch (err) {
       console.error("Like failed", err)
 
+      // rollback
       setLiked(isLiked)
       setLikesCount((prev) =>
         isLiked ? prev + 1 : prev - 1
@@ -92,30 +103,11 @@ export function DocumentDetail({ document: doc }) {
     }
   }
 
-  // xử lý tải tài liệu
-  const handleDownload = async () => {
-    try {
-      const res = await fetch(doc.file_url)
-      const blob = await res.blob()
-
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-
-      a.href = url
-      a.download = `${doc.title || "document"}.pdf`
-
-      document.body.appendChild(a)
-      a.click()
-
-      a.remove()
-      window.URL.revokeObjectURL(url)
-    } catch (err) {
-      alert("Không thể tải file")
-      console.error(err)
-    }
+  // xử lý tải tài liệu (tránh lỗi CORS cloud)
+  const handleDownload = () => {
+    if (!doc?.file_url) return
+    window.open(doc.file_url, "_blank")
   }
-
-
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -175,19 +167,31 @@ export function DocumentDetail({ document: doc }) {
               </CardContent>
             </Card>
 
+            {/* PREVIEW */}
             <Card>
               <CardHeader>
                 <CardTitle>Xem trước tài liệu</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="aspect-4/3 rounded-lg border overflow-hidden">
-                  <iframe
-                    src={`https://docs.google.com/gview?url=${encodeURIComponent(
-                      doc.file_url
-                    )}&embedded=true`}
-                    title="Preview PDF"
-                    className="w-full h-full"
-                  />
+                <div className="relative w-full pt-[75%] rounded-lg border overflow-hidden bg-black">
+                  <div className="absolute inset-0">
+                    {isVideo ? (
+                      <video
+                        src={doc.file_url}
+                        controls
+                        controlsList="nodownload"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <iframe
+                        src={`https://docs.google.com/gview?url=${encodeURIComponent(
+                          doc.file_url
+                        )}&embedded=true`}
+                        title="Preview Document"
+                        className="w-full h-full"
+                      />
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
